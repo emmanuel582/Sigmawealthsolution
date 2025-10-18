@@ -3,12 +3,13 @@ import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import { ThemeProvider } from '@/components/theme-provider'
 import ChatWidget from '@/components/chat-widget'
+import { DropdownProvider } from '@/contexts/DropdownContext'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.dev',
+  title: 'NextTrend ',
+  description: 'Created with NextTrend Team',
+  generator: 'Nextrend Team',
 }
 
 export default function RootLayout({
@@ -34,9 +35,11 @@ html {
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          {/* Global website chatbot */}
-          <ChatWidget />
+          <DropdownProvider>
+            {children}
+            {/* Global website chatbot */}
+            <ChatWidget />
+          </DropdownProvider>
         </ThemeProvider>
       </body>
     </html>

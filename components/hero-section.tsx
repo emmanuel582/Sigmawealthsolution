@@ -1,103 +1,94 @@
 "use client"
 import Image from "next/image"
-import { Button } from "@/components/ui/button"
+import { motion } from "framer-motion"
+import { useDropdown } from "../contexts/DropdownContext"
 import Link from "next/link"
-import { motion, type Variants } from "framer-motion"
-import { Typewriter } from "@/components/typewriter"
-import { MockupVideo } from "@/components/mockup-video"
 
 export function HeroSection() {
-  const heroLines = [
-    "Discover trending niches",
-    "Create viral content", 
-    "Grow your audience"
-  ]
-
-  const scrollToSection = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })
-  }
-
-  const containerVariants: Variants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.2, // Stagger animations for child elements
-        delayChildren: 0.3, // Delay the start of child animations
-      },
-    },
-  }
-
-  const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 50, scale: 0.9 },
-    visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.6, ease: [0.4, 0.0, 0.2, 1] } },
-  }
+  const { isFeaturesOpen } = useDropdown();
 
   return (
-    <section className="relative w-full h-[600px] md:h-[700px] lg:h-[800px] flex items-center justify-center text-white overflow-hidden">
+    <motion.section 
+      className="relative w-full h-[calc(100vh-84px)] flex items-center justify-center overflow-hidden"
+      animate={{
+        scale: isFeaturesOpen ? 0.95 : 1,
+        filter: isFeaturesOpen ? 'blur(4px)' : 'blur(0px)',
+      }}
+      transition={{
+        duration: 0.3,
+        ease: "easeOut"
+      }}
+    >
+      {/* Background Image */}
       <Image
-        src="/images/hero-background-new.jpeg"
-        alt="Automate Your Social Media"
-        layout="fill"
-        objectFit="cover"
+        src="/images/finance-management-hero-bg-scaled.png"
+        alt="Finance Management Hero Background"
+        fill
+        style={{ objectFit: 'cover' }}
         quality={100}
         className="absolute inset-0 z-0"
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-950/70 to-gray-950/70 z-10" />
-      <motion.div
-        className="relative z-20 container px-4 md:px-6 flex flex-col lg:flex-row items-center justify-between gap-8"
-        initial="hidden"
-        animate="visible"
-        variants={containerVariants}
-      >
-        <div className="max-w-2xl text-center lg:text-left">
-          <motion.h1
-            className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-tight"
-            variants={itemVariants}
-          >
-            <Typewriter 
-              lines={heroLines}
-              className="block mb-2"
-              speed={100}
-              pauseBetweenLines={2000}
-              loop={true}
-            />
-          </motion.h1>
-          <motion.p className="mt-4 text-lg md:text-xl text-gray-200" variants={itemVariants}>
-            NexTrend is an AI-powered platform that identifies trending niches and topics across social media platforms
-            like YouTube and TikTok. It helps creators, marketers, and businesses discover fast-rising trends before
-            they go mainstream.
-          </motion.p>
-          <motion.div
-            className="mt-8 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start"
-            variants={itemVariants}
-          >
-            <Link href="/auth/signup" prefetch={false}>
-              <Button className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-8 py-3 rounded-full">
-                Get Started
-              </Button>
-            </Link>
-            <Button
-              variant="outline"
-              className="border-white text-white hover:bg-white/20 px-8 py-3 rounded-full bg-transparent"
-              onClick={() => scrollToSection("detailed-features-section")}
+      
+      {/* Content Container */}
+      <div className="relative z-10 w-[95%] max-w-[1080px] mx-auto px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+          {/* Left Content */}
+          <div className="text-center lg:text-left">
+            <motion.h1 
+              className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
             >
-              Learn More
-            </Button>
+              <span className="text-black">The ultimate</span>
+              <br />
+              <span className="text-black">trend discovery</span>
+              <br />
+              <span className="text-[#004324]">platform</span>
+            </motion.h1>
+            
+            <motion.p 
+              className="text-lg sm:text-xl text-black/90 mb-8 max-w-lg"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+            >
+              Whether you're starting out or scaling up, NexTrend gives you the insights and automation to discover viral trends and create content your audience truly loves.
+            </motion.p>
+            
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.6 }}
+            >
+              <Link href="/auth/signup">
+                <button className="bg-[#303030] hover:bg-[#004324] text-white font-semibold px-6 py-3 rounded-2xl text-base transition-all duration-200 transform hover:translate-y-1 shadow-[0_6px_0_#000000] hover:shadow-[0_4px_0_#000000] active:translate-y-2 active:shadow-[0_2px_0_#000000]">
+                  Explore Features
+                </button>
+              </Link>
+            </motion.div>
+          </div>
+          
+          {/* Right Image */}
+          <motion.div 
+            className="relative flex justify-center lg:justify-end"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 1, delay: 0.3 }}
+          >
+            <div className="relative w-full max-w-lg">
+              <Image
+                src="/images/banner_rt_img.webp"
+                alt="NexTrend Platform Dashboard"
+                width={600}
+                height={400}
+                className="w-full h-auto object-contain"
+                priority
+              />
+            </div>
           </motion.div>
         </div>
-        <motion.div
-          className="w-full max-w-md bg-white/10 backdrop-blur-md rounded-xl p-6 shadow-lg border border-white/20 hidden lg:flex flex-col items-center justify-center"
-          variants={itemVariants}
-        >
-          <MockupVideo 
-            className="mb-4"
-            posterImage="/images/content-example-1.jpeg"
-          />
-          <h3 className="text-lg font-semibold text-center">EQ Techno</h3>
-          <p className="text-sm text-gray-300 text-center mt-2">See how our AI identifies trending content</p>
-        </motion.div>
-      </motion.div>
-    </section>
+      </div>
+    </motion.section>
   )
 }

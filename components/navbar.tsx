@@ -1,348 +1,467 @@
-"use client"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { Menu, X, Gift, Home, Search, Hash, TrendingUp, Zap, ArrowUpRight, User as UserIcon, ChevronDown, LogOut } from "lucide-react"
-import { useState, useEffect } from "react"
-import { usePathname } from "next/navigation"
-import { getCurrentUser, logout } from "@/lib/auth"
-import * as React from "react"
-
-interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  profilePicture?: string;
-}
-
-interface LinkItem {
-  href: string;
-  label: string;
-  icon?: React.ComponentType<{ className?: string }>;
-}
+import React, { useState, useEffect } from 'react';
+import { Gift, ChevronDown, Brain, TrendingUp, Target, Image, BarChart3, Zap } from 'lucide-react';
+import Link from 'next/link';
+import { useDropdown } from '../contexts/DropdownContext';
 
 export function Navbar() {
-  const [isOpen, setIsOpen] = useState(false)
-  const [isProfileOpen, setIsProfileOpen] = useState(false)
-  const [user, setUser] = useState<User | null>(null)
+  const { isFeaturesOpen, setIsFeaturesOpen } = useDropdown();
+  const [isGetStartedHovered, setIsGetStartedHovered] = useState(false);
+  const [hoveredLink, setHoveredLink] = useState<string | null>(null);
+  const [isVisible, setIsVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  const features = [
+    {
+      icon: Brain,
+      title: "AI Trend Predictor",
+      description: "Predict viral trends before they explode",
+      href: "/ai-trend"
+    },
+    {
+      icon: Image,
+      title: "Thumbnail Generator",
+      description: "AI-powered thumbnail creation",
+      href: "/create"
+    },
+    {
+      icon: TrendingUp,
+      title: "Trend Analytics",
+      description: "Real-time trend tracking & insights",
+      href: "/discover"
+    },
+    {
+      icon: Target,
+      title: "Keyword Research",
+      description: "Find trending keywords & niches",
+      href: "/keywords"
+    }
+  ];
 
   useEffect(() => {
-    setUser(getCurrentUser())
-  }, [])
-
-  const toggleMenu = () => {
-    setIsOpen(!isOpen)
-  }
-
-  const handleLogout = () => {
-    logout()
-    setUser(null)
-    window.location.href = "/"
-  }
-
-  const pathname = usePathname()
-  const isWorkspaceRoute = (p?: string | null) => {
-    if (!p) return false
-    return (
-      p.startsWith("/home-dashboard") ||
-      p.startsWith("/discover") ||
-      p.startsWith("/keywords") ||
-      p.startsWith("/ai-trend") ||
-      p.startsWith("/optimize") ||
-      p.startsWith("/upgrade") ||
-      p.startsWith("/profile")
-    )
-  }
-  const isWorkspace = isWorkspaceRoute(pathname)
-  
-  // Toggle profile dropdown
-  const toggleProfile = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsProfileOpen(!isProfileOpen);
-  }
-
-  // Close profile dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      const profileButton = document.querySelector('[data-profile-button]');
-      const profileMenu = document.querySelector('.profile-dropdown');
+    const controlNavbar = () => {
+      const currentScrollY = window.scrollY;
       
-      if (isProfileOpen && 
-          !target.closest('.profile-dropdown') && 
-          !profileButton?.contains(target) &&
-          !profileMenu?.contains(target)) {
-        setIsProfileOpen(false);
+      // Show navbar when scrolling up or at the top
+      if (currentScrollY < lastScrollY || currentScrollY < 10) {
+        setIsVisible(true);
+      } 
+      // Hide navbar when scrolling down (but not if features dropdown is open)
+      else if (currentScrollY > lastScrollY && currentScrollY > 100 && !isFeaturesOpen) {
+        setIsVisible(false);
       }
+      
+      setLastScrollY(currentScrollY);
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isProfileOpen]);
+    window.addEventListener('scroll', controlNavbar);
+    return () => window.removeEventListener('scroll', controlNavbar);
+  }, [lastScrollY, isFeaturesOpen]);
 
-  const isActive = (path: string) => {
-    return pathname === path
-  }
-
-  const workspaceLinks = [
-    { href: "/home-dashboard", label: "Home", icon: Home },
-    { href: "/discover", label: "Discover", icon: Search },
-    { href: "/keywords", label: "Keywords", icon: Hash },
-    { href: "/ai-trend", label: "AI Trend", icon: TrendingUp },
-    { href: "/upgrade", label: "Upgrade", icon: ArrowUpRight },
-  ]
-
-  const defaultLinks: LinkItem[] = [
-    { href: "/", label: "Home" },
-    { href: "/about", label: "About" },
-    { href: "/docs", label: "Docs" },
-    { href: "/contact", label: "Contact" },
-  ]
-
-  const links: LinkItem[] = isWorkspace ? workspaceLinks : defaultLinks
-  const linkBaseClass = isWorkspace
-    ? "flex items-center gap-2 dark:text-white/80 text-gray-700 hover:text-blue-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 px-4 py-2.5 rounded-lg text-sm font-medium transition-all"
-    : "text-gray-700 dark:text-white hover:text-blue-600 dark:hover:text-white/80 px-3 py-2 rounded-md text-sm font-medium"
+  const styles = {
+    body: {
+      margin: 0,
+      padding: 0,
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif",
+      backgroundColor: 'white',
+      minHeight: '5rem'
+    },
+    navbar: {
+      width: '100%',
+      padding: '12px 0',
+      backgroundColor: 'white',
+      position: 'fixed' as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 1001,
+      transform: isVisible ? 'translateY(0) scaleY(1)' : 'translateY(-80%) scaleY(0.3)',
+      transformOrigin: 'top center',
+      opacity: isVisible ? 1 : 0,
+      transition: isVisible 
+        ? 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)' 
+        : 'all 0.35s cubic-bezier(0.55, 0.085, 0.68, 0.53)',
+      boxShadow: 'none',
+      backdropFilter: 'blur(10px)',
+      WebkitBackdropFilter: 'blur(10px)'
+    },
+    navbarContainer: {
+      maxWidth: '1080px',
+      width: '95%',
+      margin: '0 auto',
+      padding: '0 2rem',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      minHeight: '60px',
+      '@media (max-width: 768px)': {
+        padding: '0 10px'
+      }
+    },
+    logo: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px'
+    },
+    circularN: {
+      width: '48px',
+      height: '48px',
+      borderRadius: '50%',
+      border: '3px solid #004324',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'transparent',
+      fontSize: '24px',
+      fontWeight: '900',
+      color: '#004324'
+    },
+    brandText: {
+      display: 'flex',
+      flexDirection: 'column' as const,
+      alignItems: 'flex-start'
+    },
+    brandName: {
+      color: '#004324',
+      fontSize: '22px',
+      fontWeight: 900,
+      lineHeight: 1.2,
+      letterSpacing: '0.5px',
+      margin: 0,
+      '@media (max-width: 768px)': {
+        fontSize: '18px'
+      }
+    },
+    tagline: {
+      color: '#004324',
+      fontSize: '10px',
+      fontWeight: 400,
+      fontStyle: 'italic' as const,
+      lineHeight: 1.2,
+      margin: 0,
+      marginTop: '1px',
+      letterSpacing: '1.5px',
+      width: '100%'
+    },
+    leftGroup: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '25px'
+    },
+    navLinks: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '25px',
+      '@media (max-width: 768px)': {
+        display: 'none'
+      }
+    },
+    navLink: {
+      fontSize: '16px',
+      fontWeight: 500,
+      textDecoration: 'none',
+      transition: 'color 0.3s ease',
+      cursor: 'pointer',
+      position: 'relative' as const,
+      padding: '8px 12px'
+    },
+    featuresDropdown: {
+      position: 'relative' as const,
+      display: 'inline-block'
+    },
+    featuresButton: {
+      fontSize: '16px',
+      fontWeight: 500,
+      textDecoration: 'none',
+      transition: 'color 0.3s ease',
+      cursor: 'pointer',
+      position: 'relative' as const,
+      padding: '8px 12px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '4px',
+      backgroundColor: 'transparent',
+      border: 'none'
+    },
+    dropdownMenu: {
+      position: 'fixed' as const,
+      top: '80px',
+      left: '0',
+      right: '0',
+      transform: isFeaturesOpen ? 'scaleY(1)' : 'scaleY(0)',
+      transformOrigin: 'top',
+      backgroundColor: 'white',
+      borderRadius: '0',
+      boxShadow: 'none',
+      border: 'none',
+      width: '100vw',
+      height: 'calc(60vh - 1rem)',
+      zIndex: 9999,
+      padding: '40px 32px',
+      opacity: isFeaturesOpen ? 1 : 0,
+      transition: 'transform 0.3s ease-out, opacity 0.3s ease-out',
+      pointerEvents: isFeaturesOpen ? 'auto' as const : 'none' as const,
+      overflow: 'hidden'
+    },
+    overlay: {
+      position: 'fixed' as const,
+      top: '80px',
+      left: '0',
+      right: '0',
+      bottom: '0',
+      backgroundColor: 'rgba(0, 0, 0, 0.4)',
+      backdropFilter: 'blur(8px)',
+      zIndex: 9998,
+      opacity: isFeaturesOpen ? 1 : 0,
+      transition: 'opacity 0.3s ease-out',
+      pointerEvents: isFeaturesOpen ? 'auto' as const : 'none' as const
+    },
+    dropdownGrid: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4, 1fr)',
+      gap: '0',
+      maxWidth: '1400px',
+      margin: '0 auto',
+      height: '100%',
+      alignItems: 'center',
+      position: 'relative' as const
+    },
+    dropdownItem: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '16px',
+      padding: '32px 24px',
+      borderRadius: '0',
+      textDecoration: 'none',
+      color: '#374151',
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      cursor: 'pointer',
+      flexDirection: 'column' as const,
+      textAlign: 'center' as const,
+      backgroundColor: 'transparent',
+      border: 'none',
+      position: 'relative' as const,
+      '&:hover': {
+        backgroundColor: '#f0f9f4',
+        transform: 'translateY(-4px)',
+        boxShadow: '0 12px 30px rgba(0, 67, 36, 0.15)'
+      }
+    },
+    dropdownIcon: {
+      width: '32px',
+      height: '32px',
+      color: '#004324',
+      flexShrink: 0,
+      marginBottom: '12px'
+    },
+    dropdownContent: {
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: '6px',
+      width: '100%'
+    },
+    dropdownTitle: {
+      fontSize: '16px',
+      fontWeight: 600,
+      color: '#111827',
+      margin: 0,
+      lineHeight: 1.3
+    },
+    dropdownDescription: {
+      fontSize: '14px',
+      color: '#6b7280',
+      margin: 0,
+      lineHeight: 1.4
+    },
+    navButtons: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '16px',
+      '@media (max-width: 768px)': {
+        gap: '12px'
+      }
+    },
+    btnDonate: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+      padding: '8px 16px',
+      backgroundColor: 'white',
+      color: '#004324',
+      border: '1px solid #004324',
+      borderRadius: '6px',
+      fontSize: '14px',
+      fontWeight: 500,
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      textDecoration: 'none',
+      boxShadow: '0 3px 0 #002a18',
+      transform: 'translateY(0)',
+      '&:hover': {
+        transform: 'translateY(1px)',
+        boxShadow: '0 2px 0 #002a18'
+      },
+      '&:active': {
+        transform: 'translateY(3px)',
+        boxShadow: '0 0px 0 #002a18'
+      },
+      '@media (max-width: 768px)': {
+        padding: '6px 12px',
+        fontSize: '13px'
+      }
+    },
+    btnGetStarted: {
+      padding: '8px 16px',
+      color: 'white',
+      border: 'none',
+      borderRadius: '12px',
+      fontSize: '14px',
+      fontWeight: 500,
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      textDecoration: 'none',
+      '@media (max-width: 768px)': {
+        padding: '6px 12px',
+        fontSize: '13px'
+      }
+    }
+  };
 
   return (
-    <nav className={`${isWorkspace ? "dark:bg-gray-900 bg-white border-b dark:border-gray-800" : "bg-white dark:bg-gray-900 border-b"} shadow-sm transition-colors duration-200`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex items-center">
-            <Link href="/" className="flex-shrink-0 flex items-center">
-              <span className={`text-2xl font-bold ${isWorkspace ? "dark:text-white text-gray-900" : "text-blue-600"}`}>NexTrend</span>
+    <div style={styles.body}>
+      {/* Spacer to prevent content jump when navbar becomes fixed */}
+      <div style={{ height: '84px' }} />
+      <nav style={styles.navbar}>
+        <div style={styles.navbarContainer}>
+          <div style={styles.leftGroup}>
+            <div style={styles.logo}>
+              <div style={styles.circularN}>N</div>
+              <div style={styles.brandText}>
+                <h1 style={styles.brandName}>NEXTTREND</h1>
+             
+              </div>
+            </div>
+            
+            <div style={styles.navLinks}>
+            <Link 
+              href="/" 
+              style={{
+                ...styles.navLink,
+                color: hoveredLink === 'home' ? '#004324' : '#000000'
+              }}
+              onMouseEnter={() => {
+                setHoveredLink('home');
+                setIsFeaturesOpen(false);
+              }}
+              onMouseLeave={() => setHoveredLink(null)}
+            >
+              Home
             </Link>
-          </div>
-
-          {/* Desktop Menu */}
-          <div className="hidden md:flex items-center space-x-8">
-            {links.map((l) => (
-              <Link key={l.href} href={l.href} className={linkBaseClass}>
-                {isWorkspace && l.icon && <l.icon className="w-4 h-4" />}
-                {l.label}
-              </Link>
-            ))}
-          </div>
-
-          {/* Desktop right-side controls */}
-          <div className="hidden md:flex items-center space-x-4">
-            <ThemeToggle />
-            {!isWorkspace && (
-              <Link href="/donate">
-                <Button variant="outline" className="gap-2">
-                  <Gift className="h-4 w-4" />
-                  Donate
-                </Button>
-              </Link>
-            )}
-            {user ? (
-              <div className="relative profile-dropdown">
-                <button 
-                  onClick={toggleProfile}
-                  className="flex items-center space-x-2 focus:outline-none"
-                >
-                  <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                    {user.profilePicture ? (
-                      <img 
-                        src={user.profilePicture} 
-                        alt={user.firstName} 
-                        className="w-full h-full rounded-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-blue-600 dark:text-blue-300 font-medium">
-                        {user.firstName[0]}{user.lastName[0]}
-                      </span>
-                    )}
-                  </div>
-                  <ChevronDown className={`w-4 h-4 text-gray-600 dark:text-gray-300 transition-transform ${isProfileOpen ? 'transform rotate-180' : ''}`} />
-                </button>
-                
-                {isProfileOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-1 z-50 border border-gray-200 dark:border-gray-700">
-                    {isWorkspace ? (
-                      <Link 
-                        href="/" 
-                        className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                        onClick={() => setIsProfileOpen(false)}
-                      >
-                        Back to Home
-                      </Link>
-                    ) : (
-                      <Link 
-                        href="/home-dashboard" 
-                        className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                        onClick={() => setIsProfileOpen(false)}
-                      >
-                        Continue with Dashboard
-                      </Link>
-                    )}
-                    {isWorkspace && (
-                      <Link 
-                        href="/optimize"
-                        className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                        onClick={() => setIsProfileOpen(false)}
-                      >
-                        <Zap className="w-4 h-4" />
-                        Optimize
-                      </Link>
-                    )}
-                    <Link 
-                      href="/profile"
-                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onClick={() => setIsProfileOpen(false)}
-                    >
-                      Profile Settings
-                    </Link>
-                    <button
-                      onClick={() => {
-                        handleLogout();
-                        setIsProfileOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                    >
-                      Sign Out
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center space-x-2">
-                <Link href="/login">
-                  <Button variant="outline">
-                    Sign In
-                  </Button>
-                </Link>
-                <Link href="/auth/signup">
-                  <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                    Get Started
-                  </Button>
-                </Link>
-              </div>
-            )}
-          </div>
-
-          {/* Mobile menu button */}
-          <div className="md:hidden flex items-center space-x-2">
-            <div className="md:hidden">
-              <ThemeToggle />
+            <Link 
+              href="/about" 
+              style={{
+                ...styles.navLink,
+                color: hoveredLink === 'about' ? '#004324' : '#000000'
+              }}
+              onMouseEnter={() => {
+                setHoveredLink('about');
+                setIsFeaturesOpen(false);
+              }}
+              onMouseLeave={() => setHoveredLink(null)}
+            >
+              About
+            </Link>
+            <div style={styles.featuresDropdown}>
+              <button
+                style={{
+                  ...styles.featuresButton,
+                  color: hoveredLink === 'features' ? '#004324' : '#000000'
+                }}
+                onMouseEnter={() => {
+                  setIsFeaturesOpen(true);
+                  setHoveredLink('features');
+                }}
+                onMouseLeave={() => setHoveredLink(null)}
+              >
+                Features
+                <ChevronDown size={16} style={{ transform: isFeaturesOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s ease' }} />
+              </button>
             </div>
             <Link 
-              href="/donate" 
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsOpen(false);
+              href="/contact" 
+              style={{
+                ...styles.navLink,
+                color: hoveredLink === 'contact' ? '#004324' : '#000000'
               }}
+              onMouseEnter={() => {
+                setHoveredLink('contact');
+                setIsFeaturesOpen(false);
+              }}
+              onMouseLeave={() => setHoveredLink(null)}
             >
-              <Gift className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+              Contact
             </Link>
-            {user && (
-              <div className="relative">
-                <button
-                  data-profile-button
-                  onClick={toggleProfile}
-                  className={`p-2 rounded-full ${isProfileOpen ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'} focus:outline-none`}
-                >
-                  <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                    {user.profilePicture ? (
-                      <img 
-                        src={user.profilePicture} 
-                        alt={user.firstName} 
-                        className="w-full h-full rounded-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-blue-600 dark:text-blue-300 font-medium">
-                        {user.firstName[0]}{user.lastName[0]}
-                      </span>
-                    )}
-                  </div>
-                </button>
-                {isProfileOpen && (
-                  <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-50 profile-dropdown">
-                    <div className="py-1">
-                      {isWorkspace ? (
-                        <>
-                          <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" onClick={() => setIsProfileOpen(false)}>
-                            Profile Settings
-                          </Link>
-                          <Link href="/optimize" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" onClick={() => setIsProfileOpen(false)}>
-                            Optimize
-                          </Link>
-                          <Link href="/" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" onClick={() => setIsProfileOpen(false)}>
-                            Back to Home
-                          </Link>
-                          <button onClick={handleLogout} className="w-full text-left block px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-gray-700">
-                            Sign Out
-                          </button>
-                        </>
-                      ) : (
-                        <Link href="/home-dashboard" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" onClick={() => setIsProfileOpen(false)}>
-                          Continue with Dashboard
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            <button
-              onClick={toggleMenu}
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none"
+            </div>
+          </div>
+          
+          <div style={styles.navButtons}>
+            <button style={styles.btnDonate}>
+              <Gift size={16} />
+              <span>Donate</span>
+            </button>
+            <button 
+              style={{
+                ...styles.btnGetStarted,
+                backgroundColor: isGetStartedHovered ? '#004324' : '#303030',
+                transform: isGetStartedHovered ? 'translateY(1px)' : 'translateY(0)',
+                boxShadow: isGetStartedHovered ? '0 4px 0 #000000' : '0 6px 0 #000000'
+              }}
+              onMouseEnter={() => setIsGetStartedHovered(true)}
+              onMouseLeave={() => setIsGetStartedHovered(false)}
             >
-              {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              <span>Get Started</span>
             </button>
           </div>
         </div>
-
-        {/* Mobile Menu - Only show main navigation */}
-        {isOpen && (
-          <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-              {links.map((l) => (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  className={`block px-3 py-2 rounded-md text-base font-medium ${isActive(l.href) ? 'text-blue-600 dark:text-white' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'}`}
-                  onClick={() => setIsOpen(false)}
-                >
-                  {l.icon && <l.icon className="inline-block w-5 h-5 mr-2 -mt-1" />}
-                  {l.label}
-                </Link>
-              ))}
-              
-              {!user && (
-                <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-                  <Link
-                    href="/login"
-                    className="block w-full px-4 py-2 text-center rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    Sign In
-                  </Link>
-                  <Link
-                    href="/register"
-                    className="block w-full px-4 py-2 text-center rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-800"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    Get Started
-                  </Link>
-                  <Link
-                    href="/donate"
-                    className="flex items-center justify-center w-full px-4 py-2 text-center rounded-md border border-yellow-300 dark:border-yellow-600 text-yellow-700 dark:text-yellow-300 font-medium hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <Gift className="w-4 h-4 mr-2" />
-                    Donate
-                  </Link>
+      </nav>
+      
+      {/* Overlay */}
+      <div
+        style={styles.overlay}
+        onMouseEnter={() => setIsFeaturesOpen(false)}
+      />
+      
+      {/* Full-width dropdown */}
+      <div
+        style={styles.dropdownMenu}
+        onMouseEnter={() => setIsFeaturesOpen(true)}
+        onMouseLeave={() => setIsFeaturesOpen(false)}
+      >
+        <div style={styles.dropdownGrid}>
+          {features.map((feature, index) => (
+            <div key={index} style={{ position: 'relative' }}>
+              <Link href={feature.href} style={styles.dropdownItem}>
+                <feature.icon style={styles.dropdownIcon} />
+                <div style={styles.dropdownContent}>
+                  <h4 style={styles.dropdownTitle}>{feature.title}</h4>
+                  <p style={styles.dropdownDescription}>{feature.description}</p>
                 </div>
+              </Link>
+              {index < features.length - 1 && (
+                <div style={{
+                  position: 'absolute',
+                  right: '0',
+                  top: '20%',
+                  bottom: '20%',
+                  width: '1px',
+                  backgroundColor: '#e5e7eb',
+                  zIndex: 1
+                }} />
               )}
             </div>
-          </div>
-        )}
+          ))}
+        </div>
       </div>
-    </nav>
-  )
-}
+    </div>
+  );
+} 

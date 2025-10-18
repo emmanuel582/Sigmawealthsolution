@@ -6,10 +6,9 @@ import { ContentExamples } from "@/components/content-examples"
 import { FeaturesSection } from "@/components/features-section"
 import { DetailedFeaturesSection } from "@/components/detailed-features-section"
 import { CaseStudies } from "@/components/case-studies"
-import { TestimonialsSection } from "@/components/testimonials-section"
 import { FAQSection } from "@/components/faq-section"
-import { NewsletterCTA } from "@/components/newsletter-cta"
 import { Footer } from "@/components/footer"
+import { ScrollToTop } from "@/components/scroll-to-top"
 import { motion, type Variants } from "framer-motion" // Import motion
 
 export default function HomePage() {
@@ -61,26 +60,11 @@ export default function HomePage() {
           viewport={{ once: true, amount: 0.2 }}
           variants={sectionVariants}
         >
-          <TestimonialsSection />
-        </motion.div>
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.2 }}
-          variants={sectionVariants}
-        >
           <FAQSection />
-        </motion.div>
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.2 }}
-          variants={sectionVariants}
-        >
-          <NewsletterCTA />
         </motion.div>
       </main>
       <Footer />
+      <ScrollToTop />
     </div>
   )
 }
