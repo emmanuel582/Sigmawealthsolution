@@ -7,8 +7,8 @@ import { DropdownProvider } from '@/contexts/DropdownContext'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'NextTrend ',
-  description: 'Created with NextTrend Team',
+  title: 'NexTrend ',
+  description: 'Created with NexTrend Team',
   generator: 'Nextrend Team',
 }
 

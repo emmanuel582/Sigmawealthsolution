@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import { Gift, ChevronDown, Brain, TrendingUp, Target, Image, BarChart3, Zap } from 'lucide-react';
 import Link from 'next/link';
@@ -337,7 +339,7 @@ export function Navbar() {
             <div style={styles.logo}>
               <div style={styles.circularN}>N</div>
               <div style={styles.brandText}>
-                <h1 style={styles.brandName}>NEXTTREND</h1>
+                <h1 style={styles.brandName}>NexTrend</h1>
              
               </div>
             </div>
