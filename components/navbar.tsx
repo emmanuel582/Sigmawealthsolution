@@ -77,7 +77,7 @@ export function Navbar() {
     <div>
       <div className="h-[80px] sm:h-[92px]" />
       <nav
-        className={`fixed top-0 left-0 right-0 z-[1001] px-3 pt-3 sm:px-4 sm:pt-4 transition-all duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-[10000] px-3 pt-3 sm:px-4 sm:pt-4 transition-all duration-300 ${
           isVisible ? "translate-y-0 opacity-100" : "-translate-y-[110%] opacity-0 pointer-events-none"
         }`}
       >
@@ -201,25 +201,25 @@ export function Navbar() {
 
       {/* Desktop features dropdown */}
       <div
-        className={`fixed inset-0 top-[80px] bg-black/40 backdrop-blur-sm z-[9998] transition-opacity duration-300 hidden lg:block ${
+        className={`fixed inset-0 top-[80px] bg-black/40 backdrop-blur-sm z-[9980] transition-opacity duration-300 hidden lg:block ${
           isFeaturesOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
         onMouseEnter={() => setIsFeaturesOpen(false)}
       />
       <div
-        className={`fixed top-[80px] left-0 right-0 z-[9999] bg-white origin-top transition-all duration-300 hidden lg:block ${
+        className={`fixed top-[80px] left-0 right-0 mx-auto w-[95%] max-w-[1080px] z-[9990] bg-white rounded-b-2xl border border-t-0 border-gray-200 shadow-xl origin-top transition-all duration-300 hidden lg:block ${
           isFeaturesOpen ? "scale-y-100 opacity-100 pointer-events-auto" : "scale-y-0 opacity-0 pointer-events-none"
         }`}
         style={{ height: "calc(50vh - 1rem)" }}
         onMouseEnter={() => setIsFeaturesOpen(true)}
         onMouseLeave={() => setIsFeaturesOpen(false)}
       >
-        <div className="grid grid-cols-4 max-w-[1400px] mx-auto h-full items-center px-8">
+        <div className="grid grid-cols-4 max-w-[1080px] mx-auto h-full items-center px-4 py-8">
           {features.map((feature, index) => (
             <div key={feature.title} className="relative h-full flex items-center">
               <Link
                 href={feature.href}
-                className="flex flex-col items-center text-center gap-3 px-6 py-8 w-full hover:bg-[#f0f9f4] transition-all duration-300 hover:-translate-y-1"
+                className="flex flex-col items-center text-center gap-3 px-4 py-6 w-full hover:bg-[#f0f9f4] rounded-xl transition-all duration-300 hover:-translate-y-1"
                 onClick={() => setIsFeaturesOpen(false)}
               >
                 <feature.icon className="w-8 h-8 text-[#004324]" />
