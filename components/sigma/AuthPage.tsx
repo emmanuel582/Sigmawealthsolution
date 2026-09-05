@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppIcon } from '@/components/sigma/ui/AppIcon';
@@ -28,57 +29,32 @@ function SigmaIcon({ className = '' }: { className?: string }) {
 /* ── Right Hero Panel ── */
 function AuthHeroPanel() {
   return (
-    <div className="relative w-full h-full min-h-[640px] rounded-[2rem] overflow-hidden bg-[#163300]">
-      <div className="absolute inset-0 opacity-20" style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239fe870' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-      }} />
-      <div className="absolute inset-0 bg-gradient-to-br from-[#163300] via-[#1a3d00] to-[#0f2200]" />
+    <div className="relative w-full h-[calc(100vh-3rem)] max-h-[820px] min-h-[520px] rounded-[2rem] overflow-hidden shadow-2xl bg-[#163300]">
+      <Image
+        src="/images/auth-hero.jpeg"
+        alt="Sigma Wealth Portal"
+        fill
+        priority
+        className="object-cover object-center"
+        sizes="(max-width: 1024px) 100vw, 50vw"
+      />
+      {/* Subtle modern gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-[#163300]/85 via-transparent to-black/10 pointer-events-none" />
 
-      <div className="relative z-10 h-full flex flex-col justify-between p-10 xl:p-14">
+      {/* Floating glass badge */}
+      <div className="absolute bottom-6 left-6 right-6 z-10 flex items-center justify-between p-4 sm:p-5 rounded-2xl bg-[#163300]/70 backdrop-blur-md border border-white/15 text-white shadow-xl">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#9fe870]/15 border border-[#9fe870]/25 text-[#9fe870] text-xs font-semibold mb-8">
-            <AppIcon name="shield" className="w-3.5 h-3.5" />
-            Trusted Investment Platform
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-2 h-2 rounded-full bg-[#9fe870] animate-pulse" />
+            <p className="text-[11px] font-bold uppercase tracking-widest text-[#9fe870]">Sigma Wealth Solution</p>
           </div>
-          <h2 className="text-4xl xl:text-5xl font-serif-display font-bold text-white leading-tight max-w-md">
-            Grow wealth with <span className="text-[#9fe870]">discipline</span> and confidence.
-          </h2>
-          <p className="mt-4 text-white/60 text-sm leading-relaxed max-w-sm">
-            Structured monthly investments, transparent tracking, and automated payouts — built for Nigerian investors.
-          </p>
+          <p className="text-sm font-semibold text-white">Automated, transparent & secure wealth growth.</p>
         </div>
-
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-3">
-            {[
-              { icon: 'chart' as const, label: 'Structured monthly contributions' },
-              { icon: 'shield' as const, label: 'Secure Flutterwave payments' },
-              { icon: 'wallet' as const, label: 'Transparent payout tracking' },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
-                <AppIcon name={item.icon} className="w-4 h-4 text-[#9fe870]" />
-                <p className="text-white/80 text-sm">{item.label}</p>
-              </div>
-            ))}
-          </div>
+        <div className="hidden xl:flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-[11px] font-medium text-white/90">
+          <AppIcon name="shield" className="w-3.5 h-3.5 text-[#9fe870]" />
+          <span>Secured</span>
         </div>
       </div>
-
-      {/* Decorative floating elements */}
-      <motion.div
-        animate={{ y: [0, -12, 0] }}
-        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute top-20 right-12 w-20 h-20 rounded-2xl bg-[#9fe870]/20 border border-[#9fe870]/30 flex items-center justify-center"
-      >
-        <AppIcon name="chart" className="w-8 h-8 text-[#9fe870]" />
-      </motion.div>
-      <motion.div
-        animate={{ y: [0, 10, 0] }}
-        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-        className="absolute bottom-32 right-20 w-14 h-14 rounded-full bg-[#9fe870]/10 border border-[#9fe870]/20 flex items-center justify-center"
-      >
-        <AppIcon name="wallet" className="w-6 h-6 text-[#9fe870]/70" />
-      </motion.div>
     </div>
   );
 }
@@ -516,79 +492,74 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
 
   /* ──────────────────────── RENDER ──────────────────────── */
   return (
-    <div className={`min-h-screen min-h-[100dvh] flex flex-col lg:flex-row bg-[#edefeb] ${mode === 'login' ? 'lg:overflow-hidden lg:h-screen lg:max-h-screen' : ''}`}>
+    <div className="min-h-screen min-h-[100dvh] w-full flex flex-col lg:flex-row bg-[#edefeb] overflow-x-hidden">
       {/* ─── FORM PANEL ─── */}
-      <div className={`flex-1 flex flex-col lg:w-[48%] xl:w-[44%] lg:max-w-none ${mode === 'login' ? 'lg:overflow-hidden' : 'lg:overflow-y-auto'}`}>
-        {/* Mobile gradient header */}
-        <div className="lg:hidden relative h-32 bg-gradient-to-b from-[#9fe870]/25 to-[#edefeb]" />
-
-        <div className={`flex-1 flex flex-col justify-center px-5 sm:px-8 lg:px-12 xl:px-16 pb-8 lg:pb-6 -mt-6 lg:mt-0 ${mode === 'signup' ? 'lg:py-8' : ''}`}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, ease: 'easeOut' }}
-            className={`w-full mx-auto lg:mx-0 ${mode === 'signup' ? 'max-w-[560px] lg:max-w-[520px]' : 'max-w-[420px] lg:max-w-[400px]'}`}
-          >
-            {/* Logo */}
-            <div className="flex items-center gap-3 mb-5 lg:mb-6">
-              <div className="w-11 h-11 rounded-2xl bg-[#163300] flex items-center justify-center text-[#9fe870] shadow-lg">
-                <SigmaIcon className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="font-bold text-[#163300] text-lg leading-tight">Sigma Wealth</p>
-                <p className="text-[10px] text-[#163300]/50 uppercase tracking-widest font-semibold">Investor Portal</p>
-              </div>
+      <div className="flex-1 flex flex-col justify-center lg:w-[48%] xl:w-[44%] min-h-full py-8 sm:py-10 px-5 sm:px-8 lg:px-12 xl:px-16">
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: 'easeOut' }}
+          className={`w-full mx-auto lg:mx-0 ${mode === 'signup' ? 'max-w-[560px] lg:max-w-[520px]' : 'max-w-[420px] lg:max-w-[400px]'}`}
+        >
+          {/* Logo */}
+          <div className="flex items-center gap-3 mb-5 lg:mb-6">
+            <div className="w-11 h-11 rounded-2xl bg-[#163300] flex items-center justify-center text-[#9fe870] shadow-lg shrink-0">
+              <SigmaIcon className="w-6 h-6" />
             </div>
+            <div>
+              <p className="font-bold text-[#163300] text-lg leading-tight">Sigma Wealth</p>
+              <p className="text-[10px] text-[#163300]/50 uppercase tracking-widest font-semibold">Investor Portal</p>
+            </div>
+          </div>
 
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#163300] tracking-tight">{title}</h1>
-            <p className="text-sm text-[#163300]/55 mt-1 mb-5 leading-relaxed">{sub}</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#163300] tracking-tight">{title}</h1>
+          <p className="text-sm text-[#163300]/55 mt-1 mb-5 leading-relaxed">{sub}</p>
 
-            {/* Alerts */}
-            <AnimatePresence mode="wait">
-              {errorMessage && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mb-3 p-3 rounded-2xl bg-red-50 border border-red-100 text-red-700 text-xs flex items-start gap-2"
-                >
-                  <AppIcon name="circleExclamation" className="w-4 h-4 shrink-0 mt-0.5" />
-                  <span>{errorMessage}</span>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            {successMessage && (
+          {/* Alerts */}
+          <AnimatePresence mode="wait">
+            {errorMessage && (
               <motion.div
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-3 p-3 rounded-2xl bg-[#9fe870]/20 border border-[#9fe870]/40 text-[#163300] text-xs flex items-start gap-2"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mb-3 p-3 rounded-2xl bg-red-50 border border-red-100 text-red-700 text-xs flex items-start gap-2"
               >
-                <AppIcon name="circleCheck" className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{successMessage}</span>
+                <AppIcon name="circleExclamation" className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{errorMessage}</span>
               </motion.div>
             )}
+          </AnimatePresence>
+          {successMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-3 p-3 rounded-2xl bg-[#9fe870]/20 border border-[#9fe870]/40 text-[#163300] text-xs flex items-start gap-2"
+            >
+              <AppIcon name="circleCheck" className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{successMessage}</span>
+            </motion.div>
+          )}
 
-            {/* Form */}
-            {mode === 'login' && loginForm}
-            {mode === 'signup' && signupForm}
-            {mode === 'forgot' && forgotForm}
+          {/* Form */}
+          {mode === 'login' && loginForm}
+          {mode === 'signup' && signupForm}
+          {mode === 'forgot' && forgotForm}
 
-            {/* Social */}
-            {socialButtons}
+          {/* Social */}
+          {socialButtons}
 
-            {/* Mode toggle */}
-            {modeToggle}
+          {/* Mode toggle */}
+          {modeToggle}
 
-            <div className="flex items-center justify-center gap-1.5 mt-4 text-[10px] text-[#163300]/35">
-              <AppIcon name="shield" className="w-3 h-3 text-[#9fe870]" />
-              <span>Secured by Supabase with Row Level Security</span>
-            </div>
-          </motion.div>
-        </div>
+          <div className="flex items-center justify-center gap-1.5 mt-4 text-[10px] text-[#163300]/35">
+            <AppIcon name="shield" className="w-3.5 h-3.5 text-[#9fe870]" />
+            <span>Secured by Supabase with Row Level Security</span>
+          </div>
+        </motion.div>
       </div>
 
       {/* ─── HERO PANEL (desktop) ─── */}
-      <div className="hidden lg:flex flex-1 items-center justify-center p-6 xl:p-10 bg-[#edefeb]">
+      <div className="hidden lg:flex flex-1 items-center justify-center p-6 xl:p-8 bg-[#edefeb]">
         <AuthHeroPanel />
       </div>
     </div>

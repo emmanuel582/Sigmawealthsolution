@@ -87,8 +87,10 @@
     font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
     @apply text-foreground;
     background-color: #f0f2f4 !important;
+    overflow-x: hidden;
   }
   html {
     background-color: #f0f2f4 !important;
+    overflow-x: hidden;
   }
 }
