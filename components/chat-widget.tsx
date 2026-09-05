@@ -14,7 +14,7 @@ type ChatMsg = { role: "user" | "assistant"; content: string }
 const MessageBubble = ({ role, content }: { role: "user" | "assistant"; content: string }) => (
   <div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm leading-relaxed ${
     role === "user"
-      ? "ml-auto bg-[#00CFFF] text-[#0D1B2A] font-medium"
+      ? "ml-auto bg-[#9fe870] text-[#163300] font-medium"
       : "mr-auto bg-[#1A2A3A] text-[#EAEAEA] border border-[#2A3A4A] shadow-sm"
   }`}>
     {content}
@@ -136,24 +136,23 @@ export default function ChatWidget() {
             <Button
               variant="outline"
               size="icon"
-              className="h-12 w-12 rounded-full bg-[#00CFFF] text-[#0D1B2A] hover:bg-[#00B8E6] shadow-md hover:shadow-lg transition-all duration-200 relative group"
+              className="h-12 w-12 rounded-full bg-[#9fe870] text-[#163300] hover:bg-[#8ee05e] border-0 shadow-[0_4px_20px_rgba(159,232,112,0.45)] hover:shadow-[0_6px_25px_rgba(159,232,112,0.6)] transition-all duration-200 relative group"
             >
-              <MessageCircle className="h-5 w-5 group-hover:scale-110 transition-transform" />
+              <MessageCircle className="h-5 w-5 text-[#163300] group-hover:scale-110 transition-transform" />
               {!open && !showNudge && (
-                <div className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 rounded-full flex items-center justify-center text-xs font-bold animate-pulse">
+                <div className="absolute -top-1 -right-1 h-5 w-5 bg-[#163300] text-[#9fe870] rounded-full flex items-center justify-center text-xs font-bold border border-[#9fe870] animate-pulse">
                   <span>1</span>
                 </div>
               )}
             </Button>
           </SheetTrigger>
 
-
         <SheetContent side="right" className="w-full sm:w-[420px] p-0 flex flex-col bg-[#0D1B2A] border-l border-[#1A2A3A] h-[80vh] max-h-[800px] rounded-l-xl">
           <SheetHeader className="px-4 py-3 border-b border-[#1A2A3A] bg-[#0D1B2A] text-[#EAEAEA]">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <div className="h-7 w-7 rounded-full bg-[#00CFFF]/20 flex items-center justify-center">
-                  <MessageCircle className="h-4 w-4 text-[#00CFFF]" />
+                <div className="h-7 w-7 rounded-full bg-[#9fe870]/20 flex items-center justify-center">
+                  <MessageCircle className="h-4 w-4 text-[#9fe870]" />
                 </div>
                 <SheetTitle className="text-base font-medium">SigmawealthSolution Assistant</SheetTitle>
               </div>
@@ -182,7 +181,7 @@ export default function ChatWidget() {
                   }
                 }}
               >
-                <qa.icon className="h-3 w-3 mr-1.5 text-[#00CFFF]" /> {qa.label}
+                <qa.icon className="h-3 w-3 mr-1.5 text-[#9fe870]" /> {qa.label}
               </button>
             ))}
           </div>
@@ -197,9 +196,9 @@ export default function ChatWidget() {
             ))}
             {loading && (
               <div className="flex items-center justify-start space-x-1.5 mr-auto">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#00CFFF] animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-1.5 h-1.5 rounded-full bg-[#00CFFF] animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-1.5 h-1.5 rounded-full bg-[#00CFFF] animate-bounce" style={{ animationDelay: '300ms' }} />
+                <div className="w-1.5 h-1.5 rounded-full bg-[#9fe870] animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-1.5 h-1.5 rounded-full bg-[#9fe870] animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-1.5 h-1.5 rounded-full bg-[#9fe870] animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
             )}
           </div>
@@ -288,7 +287,7 @@ export default function ChatWidget() {
                       }
                     }}
                     disabled={!bugName.trim() || !bugEmail.trim() || !bugDesc.trim()}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    className="bg-[#9fe870] text-[#163300] font-semibold hover:bg-[#8ee05e]"
                   >
                     Submit Report
                   </Button>
@@ -311,12 +310,12 @@ export default function ChatWidget() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={showBugForm}
-              className="bg-[#1A2A3A] border-[#2A3A4A] text-[#EAEAEA] placeholder:text-[#5A6A7A] text-sm h-9 flex-1 focus-visible:ring-1 focus-visible:ring-[#00CFFF]"
+              className="bg-[#1A2A3A] border-[#2A3A4A] text-[#EAEAEA] placeholder:text-[#5A6A7A] text-sm h-9 flex-1 focus-visible:ring-1 focus-visible:ring-[#9fe870]"
             />
             <Button 
               type="submit" 
               disabled={loading || !input.trim() || showBugForm} 
-              className="bg-[#00CFFF] text-[#0D1B2A] hover:bg-[#00B8E6] h-9 w-9 p-0"
+              className="bg-[#9fe870] text-[#163300] hover:bg-[#8ee05e] h-9 w-9 p-0 font-bold"
               size="icon"
             >
               <Send className="h-4 w-4" />
@@ -326,13 +325,13 @@ export default function ChatWidget() {
       </Sheet>
       
       {showNudge && !open && (
-        <div className="absolute bottom-16 right-0 w-64 bg-white/90 backdrop-blur-lg rounded-xl p-3 shadow-xl border border-gray-200 animate-fade-in">
+        <div className="absolute bottom-16 right-0 w-64 bg-white/95 backdrop-blur-lg rounded-xl p-3 shadow-xl border border-[#163300]/10 animate-fade-in">
           <div className="flex items-start gap-2">
-            <div className="bg-blue-100 p-1.5 rounded-lg">
-              <MessageCircle className="h-4 w-4 text-blue-600" />
+            <div className="bg-[#9fe870]/20 p-1.5 rounded-lg">
+              <MessageCircle className="h-4 w-4 text-[#163300]" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-900">Need help?</p>
+              <p className="text-sm font-semibold text-gray-900">Need help?</p>
               <p className="text-xs text-gray-600 mt-0.5">We're here to assist you!</p>
             </div>
             <button 
