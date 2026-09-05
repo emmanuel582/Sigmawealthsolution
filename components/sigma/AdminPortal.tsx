@@ -368,35 +368,86 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
     }
   }
 
+  const [compressingImage, setCompressingImage] = useState(false)
+
   const handleImagePick = (file: File | null) => {
     if (!file) {
       setNotifImageUrl(null)
       return
     }
     if (!file.type.startsWith("image/")) {
-      showToast("Please choose an image file")
+      showToast("Please choose an image file (PNG, JPG, WebP)")
       return
     }
-    if (file.size > 900_000) {
-      showToast("Image must be under ~900KB")
-      return
-    }
+
+    setCompressingImage(true)
     const reader = new FileReader()
-    reader.onload = () => setNotifImageUrl(String(reader.result || ""))
+    reader.onerror = () => {
+      showToast("Could not read image file")
+      setCompressingImage(false)
+    }
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onerror = () => {
+        showToast("Invalid image file")
+        setCompressingImage(false)
+      }
+      img.onload = () => {
+        try {
+          const MAX_WIDTH = 1024
+          const MAX_HEIGHT = 1024
+          let width = img.width
+          let height = img.height
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height = Math.round((height * MAX_WIDTH) / width)
+              width = MAX_WIDTH
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width = Math.round((width * MAX_HEIGHT) / height)
+              height = MAX_HEIGHT
+            }
+          }
+          const canvas = document.createElement("canvas")
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext("2d")
+          ctx?.drawImage(img, 0, 0, width, height)
+          const compressed = canvas.toDataURL("image/jpeg", 0.78)
+          setNotifImageUrl(compressed)
+        } catch {
+          setNotifImageUrl(String(reader.result || ""))
+        } finally {
+          setCompressingImage(false)
+        }
+      }
+      img.src = String(e.target?.result || "")
+    }
     reader.readAsDataURL(file)
   }
 
   const handleSendNotification = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!user || !notifTitle.trim() || !notifBody.trim()) return
+    const trimmedBody = notifBody.trim()
+    if (!trimmedBody) {
+      showToast("Please write a message to send")
+      return
+    }
+    if (notifAudience === "single" && !notifTargetUserId) {
+      showToast("Please select an investor to receive this alert")
+      return
+    }
+
+    const resolvedTitle = notifTitle.trim() || (trimmedBody.length > 30 ? `${trimmedBody.slice(0, 27)}...` : trimmedBody) || "Announcement"
     setSendingNotification(true)
     try {
       await sendBroadcastNotification({
-        title: notifTitle.trim(),
-        body: notifBody.trim(),
+        title: resolvedTitle,
+        body: trimmedBody,
         audience: notifAudience,
         targetUserId: notifTargetUserId || undefined,
-        adminName: user.name || user.email || "Admin",
+        adminName: user?.name || user?.email || "Admin",
         icon: notifIcon,
         imageUrl: notifImageUrl || undefined,
       })
@@ -1190,10 +1241,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
                         </label>
                         <label className="flex items-center gap-2 h-10 px-3 rounded-xl bg-[#edefeb] border border-dashed border-[#163300]/20 text-xs font-semibold cursor-pointer hover:border-[#163300]/40">
                           <ImagePlus className="w-4 h-4" />
-                          {notifImageUrl ? "Change image" : "Add picture"}
+                          {compressingImage ? "Optimizing image…" : notifImageUrl ? "Change image" : "Add picture"}
                           <input
                             type="file"
                             accept="image/*"
+                            disabled={compressingImage || sendingNotification}
                             className="hidden"
                             onChange={(e) => handleImagePick(e.target.files?.[0] || null)}
                           />
@@ -1216,8 +1268,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
                           </div>
                         )}
                       </div>
-                      <PressableButton type="submit" variant="lime" fullWidth disabled={sendingNotification}>
-                        {sendingNotification ? "Sending…" : "Send alert"}
+                      <PressableButton
+                        type="submit"
+                        variant="lime"
+                        fullWidth
+                        disabled={sendingNotification || compressingImage}
+                      >
+                        {compressingImage ? "Optimizing image…" : sendingNotification ? "Sending…" : "Send alert"}
                       </PressableButton>
                     </form>
                   </SurfaceCard>

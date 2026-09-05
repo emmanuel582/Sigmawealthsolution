@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardSkeleton } from '@/components/sigma/ui/Skeleton';
 import { UserAvatar } from '@/components/sigma/ui/UserAvatar';
@@ -376,7 +376,39 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
     return { totalInvested, planLabel, isPlanActive, nextPaymentDate };
   }, [payments, profile, investment]);
 
-  const unreadNotifCount = notifications.length;
+  // Track read notification IDs so opening alerts removes the unread badge
+  const [readNotifIds, setReadNotifIds] = useState<Set<string>>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(`sigma_read_notifs_${user?.id || 'guest'}`);
+        return saved ? new Set(JSON.parse(saved)) : new Set();
+      } catch {
+        return new Set();
+      }
+    }
+    return new Set();
+  });
+
+  const markAllNotificationsAsRead = useCallback(() => {
+    if (notifications.length === 0) return;
+    setReadNotifIds((prev) => {
+      const next = new Set([...Array.from(prev), ...notifications.map((n) => n.id)]);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(`sigma_read_notifs_${user?.id || 'guest'}`, JSON.stringify(Array.from(next)));
+        } catch {}
+      }
+      return next;
+    });
+  }, [notifications, user?.id]);
+
+  useEffect(() => {
+    if (activeTab === 'notifications' || showNotificationPopover) {
+      markAllNotificationsAsRead();
+    }
+  }, [activeTab, showNotificationPopover, markAllNotificationsAsRead]);
+
+  const unreadNotifCount = notifications.filter((n) => !readNotifIds.has(n.id)).length;
 
   if (loading && !profile) {
     return <DashboardSkeleton />;
