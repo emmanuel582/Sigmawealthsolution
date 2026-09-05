@@ -14,8 +14,8 @@ type ChatMsg = { role: "user" | "assistant"; content: string }
 const MessageBubble = ({ role, content }: { role: "user" | "assistant"; content: string }) => (
   <div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm leading-relaxed ${
     role === "user"
-      ? "ml-auto bg-[#9fe870] text-[#163300] font-medium"
-      : "mr-auto bg-[#1A2A3A] text-[#EAEAEA] border border-[#2A3A4A] shadow-sm"
+      ? "ml-auto bg-[#004324] text-white font-medium"
+      : "mr-auto bg-[#f0f9f4] text-gray-800 border border-[#d4edda] shadow-sm"
   }`}>
     {content}
   </div>
@@ -139,27 +139,22 @@ export default function ChatWidget() {
               className="h-12 w-12 rounded-full bg-[#9fe870] text-[#163300] hover:bg-[#8ee05e] border-0 shadow-[0_4px_20px_rgba(159,232,112,0.45)] hover:shadow-[0_6px_25px_rgba(159,232,112,0.6)] transition-all duration-200 relative group"
             >
               <MessageCircle className="h-5 w-5 text-[#163300] group-hover:scale-110 transition-transform" />
-              {!open && !showNudge && (
-                <div className="absolute -top-1 -right-1 h-5 w-5 bg-[#163300] text-[#9fe870] rounded-full flex items-center justify-center text-xs font-bold border border-[#9fe870] animate-pulse">
-                  <span>1</span>
-                </div>
-              )}
             </Button>
           </SheetTrigger>
 
-        <SheetContent side="right" className="w-full sm:w-[420px] p-0 flex flex-col bg-[#0D1B2A] border-l border-[#1A2A3A] h-[80vh] max-h-[800px] rounded-l-xl">
-          <SheetHeader className="px-4 py-3 border-b border-[#1A2A3A] bg-[#0D1B2A] text-[#EAEAEA]">
+        <SheetContent side="right" className="w-full sm:w-[420px] p-0 flex flex-col bg-white border-l border-gray-200 h-[80vh] max-h-[800px] rounded-l-xl">
+          <SheetHeader className="px-4 py-3 border-b border-gray-200 bg-[#004324] text-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <div className="h-7 w-7 rounded-full bg-[#9fe870]/20 flex items-center justify-center">
+                <div className="h-7 w-7 rounded-full bg-white/20 flex items-center justify-center">
                   <MessageCircle className="h-4 w-4 text-[#9fe870]" />
                 </div>
-                <SheetTitle className="text-base font-medium">SigmawealthSolution Assistant</SheetTitle>
+                <SheetTitle className="text-base font-medium text-white">SigmawealthSolution Assistant</SheetTitle>
               </div>
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="text-[#EAEAEA]/80 hover:bg-[#1A2A3A] hover:text-[#EAEAEA] h-8 w-8 p-0"
+                className="text-white/80 hover:bg-white/10 hover:text-white h-8 w-8 p-0"
                 onClick={() => setOpen(false)}
               >
                 <X className="h-4 w-4" />
@@ -168,11 +163,11 @@ export default function ChatWidget() {
           </SheetHeader>
 
           {/* Quick Actions */}
-          <div className="px-3 py-2 grid grid-cols-2 gap-2 bg-[#0D1B2A] border-b border-[#1A2A3A]">
+          <div className="px-3 py-2 grid grid-cols-2 gap-2 bg-white border-b border-gray-200">
             {quickActions.map((qa) => (
               <button
                 key={qa.label}
-                className="justify-start bg-[#1A2A3A] border border-[#2A3A4A] hover:bg-[#2A3A4A] h-8 rounded text-xs px-2 flex items-center transition-colors text-[#EAEAEA]"
+                className="justify-start bg-[#f0f9f4] border border-[#d4edda] hover:bg-[#e0f2e9] h-8 rounded text-xs px-2 flex items-center transition-colors text-gray-800"
                 onClick={() => {
                   if (qa.intent === "issue") {
                     setShowBugForm(true)
@@ -181,14 +176,14 @@ export default function ChatWidget() {
                   }
                 }}
               >
-                <qa.icon className="h-3 w-3 mr-1.5 text-[#9fe870]" /> {qa.label}
+                <qa.icon className="h-3 w-3 mr-1.5 text-[#004324]" /> {qa.label}
               </button>
             ))}
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#0D1B2A]" ref={scrollRef}>
-            <div className="text-center text-xs text-[#7A8A9A] py-1">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white" ref={scrollRef}>
+            <div className="text-center text-xs text-gray-400 py-1">
               Today
             </div>
             {messages.map((msg, i) => (
@@ -196,21 +191,21 @@ export default function ChatWidget() {
             ))}
             {loading && (
               <div className="flex items-center justify-start space-x-1.5 mr-auto">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#9fe870] animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-1.5 h-1.5 rounded-full bg-[#9fe870] animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-1.5 h-1.5 rounded-full bg-[#9fe870] animate-bounce" style={{ animationDelay: '300ms' }} />
+                <div className="w-1.5 h-1.5 rounded-full bg-[#004324] animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-1.5 h-1.5 rounded-full bg-[#004324] animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-1.5 h-1.5 rounded-full bg-[#004324] animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
             )}
           </div>
 
           {/* Bug Report Form */}
           {showBugForm && (
-            <div className="bg-[#1A2A3A] rounded-lg p-3 border border-[#2A3A4A] mt-3 mx-3 mb-2">
+            <div className="bg-[#f0f9f4] rounded-lg p-3 border border-[#d4edda] mt-3 mx-3 mb-2">
               <div className="flex justify-between items-center mb-3">
-                <h3 className="font-medium">Report an Issue</h3>
+                <h3 className="font-medium text-gray-900">Report an Issue</h3>
                 <button 
                   onClick={() => setShowBugForm(false)}
-                  className="text-gray-400 hover:text-white"
+                  className="text-gray-400 hover:text-gray-700"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -220,29 +215,29 @@ export default function ChatWidget() {
                   placeholder="Your name"
                   value={bugName}
                   onChange={(e) => setBugName(e.target.value)}
-                  className="bg-gray-700 border-gray-600 text-white"
+                  className="bg-white border-gray-300 text-gray-900"
                 />
                 <Input
                   placeholder="Email address"
                   type="email"
                   value={bugEmail}
                   onChange={(e) => setBugEmail(e.target.value)}
-                  className="bg-gray-700 border-gray-600 text-white"
+                  className="bg-white border-gray-300 text-gray-900"
                 />
                 <Textarea
                   placeholder="Describe the issue..."
                   rows={3}
                   value={bugDesc}
                   onChange={(e) => setBugDesc(e.target.value)}
-                  className="bg-gray-700 border-gray-600 text-white"
+                  className="bg-white border-gray-300 text-gray-900"
                 />
                 <div className="flex items-center justify-between">
-                  <label className="text-sm text-gray-300 flex items-center">
+                  <label className="text-sm text-gray-600 flex items-center">
                     <input
                       type="checkbox"
                       checked={isUrgent}
                       onChange={(e) => setIsUrgent(e.target.checked)}
-                      className="h-4 w-4 text-purple-500 rounded border-gray-600 bg-gray-700 mr-2"
+                      className="h-4 w-4 text-[#004324] rounded border-gray-300 bg-white mr-2"
                     />
                     Urgent issue
                   </label>
@@ -287,7 +282,7 @@ export default function ChatWidget() {
                       }
                     }}
                     disabled={!bugName.trim() || !bugEmail.trim() || !bugDesc.trim()}
-                    className="bg-[#9fe870] text-[#163300] font-semibold hover:bg-[#8ee05e]"
+                    className="bg-[#004324] text-white font-semibold hover:bg-[#003319]"
                   >
                     Submit Report
                   </Button>
@@ -298,7 +293,7 @@ export default function ChatWidget() {
 
           {/* Input */}
           <form
-            className="flex gap-2 p-3 border-t border-[#1A2A3A] bg-[#0D1B2A]"
+            className="flex gap-2 p-3 border-t border-gray-200 bg-white"
             onSubmit={(e) => {
               e.preventDefault()
               if (showBugForm) return // disable text send while form is open
@@ -310,12 +305,12 @@ export default function ChatWidget() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={showBugForm}
-              className="bg-[#1A2A3A] border-[#2A3A4A] text-[#EAEAEA] placeholder:text-[#5A6A7A] text-sm h-9 flex-1 focus-visible:ring-1 focus-visible:ring-[#9fe870]"
+              className="bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-400 text-sm h-9 flex-1 focus-visible:ring-1 focus-visible:ring-[#004324]"
             />
             <Button 
               type="submit" 
               disabled={loading || !input.trim() || showBugForm} 
-              className="bg-[#9fe870] text-[#163300] hover:bg-[#8ee05e] h-9 w-9 p-0 font-bold"
+              className="bg-[#004324] text-white hover:bg-[#003319] h-9 w-9 p-0 font-bold"
               size="icon"
             >
               <Send className="h-4 w-4" />

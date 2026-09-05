@@ -9,7 +9,8 @@ import {
   BarChart3, 
   ShieldCheck, 
   Landmark,
-  Users
+  Users,
+  Gift
 } from "lucide-react"
 
 const features = [
@@ -47,6 +48,11 @@ const features = [
     icon: Users,
     title: "Transparent Investor Experience",
     description: "Clear earnings calculations, full transaction history, and 24/7 dedicated support every step of the way."
+  },
+  {
+    icon: Gift,
+    title: "10% On Referral",
+    description: "Invite your friends and earn an instant 10% commission when they make their first investment."
   }
 ]
 
@@ -215,8 +221,20 @@ export function ContentExamples() {
               <div className="hidden lg:block absolute right-0 top-0 h-full w-px bg-gray-200"></div>
             </div>
 
-            {/* Empty column for alignment */}
-            <div className="relative hidden lg:block"></div>
+            {/* Feature 8 */}
+            <div className="relative">
+              <div className="flex flex-col items-start text-left">
+                <div className="w-12 h-12 bg-white border border-gray-200/80 shadow-sm rounded-xl flex items-center justify-center mb-4">
+                  <Gift className="w-6 h-6 text-[#004324]" />
+                </div>
+                <h3 className="text-lg font-semibold text-black mb-3">
+                  {features[7].title}
+                </h3>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  {features[7].description}
+                </p>
+              </div>
+            </div>
           </div>
         </motion.div>
 
