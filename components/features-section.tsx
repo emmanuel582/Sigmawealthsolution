@@ -9,167 +9,158 @@ export function FeaturesSection() {
   }
 
   return (
-    <section className="w-full pt-8 md:pt-12 pb-16 md:pb-24 bg-white">
-      {/* Container aligned with navbar and content examples */}
-      <div className="w-[95%] max-w-[1080px] mx-auto px-8">
-        
-        {/* First Row - 2 Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-          {/* Card 1: Get Discovered */}
+    <section id="how-it-works" className="w-full pt-8 md:pt-12 pb-12 sm:pb-16 md:pb-24 bg-[#f0f2f4] scroll-mt-24">
+      <div className="w-[95%] max-w-[1080px] mx-auto px-4 sm:px-6 md:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 mb-6 sm:mb-8">
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, amount: 0.2 }}
             variants={cardVariants}
-            className="bg-[#fafafa] rounded-2xl p-8 flex flex-col"
+            className="bg-white rounded-2xl p-6 sm:p-8 flex flex-col"
           >
             <div className="mb-6">
-              <h3 className="text-2xl font-bold text-black mb-4">
-                Get Discovered with our Youtube SEO tools
+              <h3 className="text-xl sm:text-2xl font-bold text-black mb-4">
+                Phase 1 — Open your investment
               </h3>
               <p className="text-gray-600 leading-relaxed mb-6">
-                Discover what your viewers are searching for before you hit record. Our SEO tools show you the keywords and topics that will get your videos found and watched by the right people.
+                Create your SigmawealthSolution account, choose your amount (from $100 upward), and fund with Paystack debit card, auto-debit, or Opay transfer.
               </p>
               <div className="space-y-2 mb-6">
-                <p className="text-sm font-medium text-[#004324]">What should I make?</p>
-                <p className="text-sm font-medium text-[#004324]">Who is it for?</p>
+                <p className="text-sm font-medium text-[#004324]">How much can I invest?</p>
+                <p className="text-sm font-medium text-[#004324]">How do I fund my account?</p>
               </div>
             </div>
             <div className="mt-auto">
               <Image
                 src="/images/content-example-1.jpeg"
-                alt="YouTube SEO tools interface"
+                alt="Open an investment"
                 width={400}
                 height={200}
-                className="w-full h-48 object-cover rounded-lg"
+                className="w-full h-40 sm:h-48 object-cover rounded-lg"
               />
             </div>
           </motion.div>
 
-          {/* Card 2: Make Content Impossible to Ignore */}
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, amount: 0.2 }}
             variants={cardVariants}
-            className="bg-[#fafafa] rounded-2xl p-8 flex flex-col"
+            className="bg-white rounded-2xl p-6 sm:p-8 flex flex-col"
           >
             <div className="mb-6">
-              <h3 className="text-2xl font-bold text-black mb-4">
-                Make Your Content Impossible to Ignore
+              <h3 className="text-xl sm:text-2xl font-bold text-black mb-4">
+                Phase 2 — First payout in 2 weeks
               </h3>
               <p className="text-gray-600 leading-relaxed mb-6">
-                Whether you're deep in editing or refining titles and thumbnails, this is where creativity meets precision. Nail the details that make your content stand out and get more clicks.
+                At the half-month mark, you receive 50% of your return. Track your next payment date and total invested from your investor dashboard.
               </p>
               <p className="text-sm font-medium text-[#004324] mb-6">
-                How do I bring this idea to life and make it click?
+                When is my first payout?
               </p>
             </div>
             <div className="mt-auto">
               <Image
                 src="/images/content-example-2.jpeg"
-                alt="Content creation tools"
+                alt="First investment payout"
                 width={400}
                 height={200}
-                className="w-full h-48 object-cover rounded-lg"
+                className="w-full h-40 sm:h-48 object-cover rounded-lg"
               />
             </div>
           </motion.div>
         </div>
 
-        {/* Second Row - 1 Long Card */}
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, amount: 0.2 }}
             variants={cardVariants}
-            className="bg-[#fafafa] rounded-2xl p-8"
+            className="bg-white rounded-2xl p-6 sm:p-8"
           >
-            <div className="flex flex-col lg:flex-row items-start gap-8">
+            <div className="flex flex-col lg:flex-row items-start gap-6 sm:gap-8">
               <div className="flex-1">
-                <h3 className="text-2xl font-bold text-black mb-4">
-                  Focus on creating, not managing
+                <h3 className="text-xl sm:text-2xl font-bold text-black mb-4">
+                  Phase 3 — Full return by month end
                 </h3>
                 <p className="text-gray-600 leading-relaxed mb-6">
-                  Handle the repetitive stuff in minutes, not hours. Our productivity tools streamline your workflow so you spend more time making videos and less time managing your channel.
+                  At the end of the month you receive the remaining 50% — completing your full return of investment. Then reinvest, adjust auto-debit, or take a one-time deposit.
                 </p>
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-[#004324]">Where should I take it next?</p>
-                  <p className="text-sm font-medium text-[#004324]">How is it doing?</p>
+                  <p className="text-sm font-medium text-[#004324]">What happens at month end?</p>
+                  <p className="text-sm font-medium text-[#004324]">Can I reinvest automatically?</p>
                 </div>
               </div>
               <div className="w-full lg:w-96">
                 <Image
                   src="/images/content-example-3.jpeg"
-                  alt="Productivity tools dashboard"
+                  alt="Full monthly investment return"
                   width={400}
                   height={250}
-                  className="w-full h-64 object-cover rounded-lg"
+                  className="w-full h-48 sm:h-64 object-cover rounded-lg"
                 />
               </div>
             </div>
           </motion.div>
         </div>
 
-        {/* Third Row - 2 Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Card 4: Refine, Grow, and Repeat */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, amount: 0.2 }}
             variants={cardVariants}
-            className="bg-[#fafafa] rounded-2xl p-8 flex flex-col"
+            className="bg-white rounded-2xl p-6 sm:p-8 flex flex-col"
           >
             <div className="mb-6">
-              <h3 className="text-2xl font-bold text-black mb-4">
-                Refine, Grow, and Repeat
+              <h3 className="text-xl sm:text-2xl font-bold text-black mb-4">
+                Auto-debit or one-time pay
               </h3>
               <p className="text-gray-600 leading-relaxed mb-6">
-                See exactly which content drives views, subscribers, and revenue. Our strategy tools reveal the patterns behind your niche and top content so you can create more of what your audience loves.
+                Set a monthly auto-investment amount, or pay once whenever you are ready. Your debit card stays secure through Paystack.
               </p>
               <p className="text-sm font-medium text-[#004324] mb-6">
-                How do I evolve and scale?
+                Which payment option is right for me?
               </p>
             </div>
             <div className="mt-auto">
               <Image
                 src="/images/case-study-1.jpeg"
-                alt="Analytics and growth tools"
+                alt="Investment payment options"
                 width={400}
                 height={200}
-                className="w-full h-48 object-cover rounded-lg"
+                className="w-full h-40 sm:h-48 object-cover rounded-lg"
               />
             </div>
           </motion.div>
 
-          {/* Card 5: Trend Prediction */}
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, amount: 0.2 }}
             variants={cardVariants}
-            className="bg-[#fafafa] rounded-2xl p-8 flex flex-col"
+            className="bg-white rounded-2xl p-6 sm:p-8 flex flex-col"
           >
             <div className="mb-6">
-              <h3 className="text-2xl font-bold text-black mb-4">
-                Predict Trends Before They Blow Up
+              <h3 className="text-xl sm:text-2xl font-bold text-black mb-4">
+                Clear terms & full control
               </h3>
               <p className="text-gray-600 leading-relaxed mb-6">
-                Stay ahead of the curve with AI-powered trend prediction. Discover what's about to go viral before your competitors even know it exists.
+                Review terms and conditions before you invest. Monitor every deposit and payout, and manage your plan from a simple investor portal.
               </p>
               <p className="text-sm font-medium text-[#004324] mb-6">
-                What's trending next?
+                Where can I read the terms?
               </p>
             </div>
             <div className="mt-auto">
               <Image
                 src="/images/case-study-2.jpeg"
-                alt="Trend prediction dashboard"
+                alt="Investment terms and control"
                 width={400}
                 height={200}
-                className="w-full h-48 object-cover rounded-lg"
+                className="w-full h-40 sm:h-48 object-cover rounded-lg"
               />
             </div>
           </motion.div>

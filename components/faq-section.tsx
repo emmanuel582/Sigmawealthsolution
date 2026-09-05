@@ -4,55 +4,53 @@ import Image from "next/image"
 export function FAQSection() {
   const faqs = [
     {
-      question: "What is NexTrend?",
+      question: "What is SigmawealthSolution?",
       answer:
-        "NexTrend is an AI-powered platform that identifies trending niches and topics across social media platforms like YouTube and TikTok. It helps creators, marketers, and businesses discover fast-rising trends before they go mainstream.",
+        "SigmawealthSolution is an investment platform where you can invest from $100 to unlimited amounts and receive your full return of investment within one month — paid in two parts.",
     },
     {
-      question: "How does NexTrend identify trends?",
+      question: "How do payouts work?",
       answer:
-        "NexTrend uses advanced AI models to analyze vast amounts of data from social media platforms, identifying patterns and predicting emerging trends before they become widely popular.",
+        "Returns are paid twice every month: 50% within the first two weeks (half month), and the remaining 50% at the end of the month — completing your full return.",
     },
     {
-      question: "Which platforms does NexTrend support?",
+      question: "What is the minimum investment?",
       answer:
-        "Currently, NexTrend supports YouTube and TikTok for trend identification and tracking. We plan to expand to more platforms in the future.",
+        "The minimum investment is $100. There is no maximum — you can invest as much as you want.",
     },
     {
-      question: "Is there a free trial available?",
+      question: "How can I fund my investment?",
       answer:
-        "Yes, we offer a free tier that allows you to generate one content idea per day. You can sign up for our newsletter to get started.",
+        "You can pay with a debit card through Paystack (including optional monthly auto-debit), make a one-time payment, or transfer via Opay.",
     },
     {
-      question: "How can I get personalized niche recommendations?",
+      question: "What will I see in my investor dashboard?",
       answer:
-        "Our AI analyzes your content style and audience engagement to provide personalized niche recommendations directly within your user dashboard.",
+        "You'll see total money invested, your next payment date, debit card details for transactions, and options for auto-debit or one-time deposits.",
     },
   ]
 
   return (
-    <section className="w-full py-16 md:py-24 lg:py-32 relative overflow-hidden scroll-mt-16">
-      {/* Background Image */}
+    <section className="w-full py-12 sm:py-16 md:py-24 lg:py-32 relative overflow-hidden scroll-mt-16 bg-[#f0f2f4]">
       <Image
         src="/images/finance-management-hero-bg-scaled.png"
-        alt="Finance Management Background"
+        alt="SigmawealthSolution background"
         fill
-        style={{ objectFit: 'contain' }}
+        style={{ objectFit: "contain" }}
         quality={100}
         className="absolute inset-0 z-0"
       />
-      
-      {/* Content */}
-      <div className="relative z-10 w-[95%] max-w-[1080px] mx-auto px-8">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-black mb-6">
-            Here's to all your interesting questions
+
+      <div className="relative z-10 w-[95%] max-w-[1080px] mx-auto px-4 sm:px-6 md:px-8">
+        <div className="text-center mb-10 sm:mb-16">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-black mb-4 sm:mb-6">
+            Questions about investing with us
           </h2>
-          <p className="text-lg text-gray-700 max-w-2xl mx-auto">
-            Find answers to common questions about NexTrend.
+          <p className="text-base sm:text-lg text-gray-700 max-w-2xl mx-auto">
+            Find answers about SigmawealthSolution returns, payouts, and funding options.
           </p>
         </div>
-        
+
         <div className="max-w-4xl mx-auto">
           <Accordion type="single" collapsible className="w-full space-y-4">
             {faqs.map((faq, index) => (
@@ -61,10 +59,10 @@ export function FAQSection() {
                 value={`item-${index}`}
                 className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden"
               >
-                <AccordionTrigger className="text-lg font-semibold text-black hover:no-underline px-6 py-5 hover:bg-[#004324]/5 transition-colors">
+                <AccordionTrigger className="text-base sm:text-lg font-semibold text-black hover:no-underline px-4 sm:px-6 py-4 sm:py-5 hover:bg-[#004324]/5 transition-colors text-left">
                   {faq.question}
                 </AccordionTrigger>
-                <AccordionContent className="text-gray-700 px-6 pb-5 leading-relaxed">
+                <AccordionContent className="text-gray-700 px-4 sm:px-6 pb-4 sm:pb-5 leading-relaxed text-sm sm:text-base">
                   {faq.answer}
                 </AccordionContent>
               </AccordionItem>

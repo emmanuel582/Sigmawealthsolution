@@ -2,12 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .font-serif-display {
+    font-family: Georgia, "Times New Roman", serif;
+  }
+}
+
 @layer base {
   :root {
-    --background: 0 0% 100%; /* white */
+    --background: 220 14% 96%; /* soft gray */
     --foreground: 222.2 47.4% 11.2%; /* gray-900 */
 
-    --muted: 210 40% 96.1%; /* gray-100 */
+    --muted: 220 14% 94%;
     --muted-foreground: 215.4 16.3% 46.9%; /* gray-600 */
 
     --popover: 0 0% 100%; /* white */
@@ -71,10 +84,11 @@
     @apply border-border;
   }
   body {
-    @apply bg-white text-foreground;
-    background-color: white !important;
+    font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+    @apply text-foreground;
+    background-color: #f0f2f4 !important;
   }
   html {
-    background-color: white !important;
+    background-color: #f0f2f4 !important;
   }
 }

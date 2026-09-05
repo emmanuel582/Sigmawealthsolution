@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     // Prepare email content
     const FEEDBACK_TO = process.env.FEEDBACK_TO || process.env.CONTACT_EMAIL || ""
     const subjectPrefix = payload.severity === "urgent" ? "[URGENT] " : ""
-    const subject = `${subjectPrefix}NexTrend ${payload.type} report from ${payload.name}`
+    const subject = `${subjectPrefix}SigmawealthSolution ${payload.type} report from ${payload.name}`
     const text = `New ${payload.type} report\nSeverity: ${payload.severity}\nName: ${payload.name}\nEmail: ${payload.email}\nTime: ${payload.ts}\n\nDescription:\n${payload.description}`
 
     const transporter = await getTransporter()

@@ -1,53 +1,60 @@
-# NexTrend
+# SigmawealthSolution
 
-NexTrend is an AI-powered content trend prediction platform designed for social media creators and marketers. The application helps users discover trending niches, analyze content performance, and generate viral content ideas across YouTube and TikTok platforms. Built with modern web technologies, it features a comprehensive dashboard for trend insights, keyword research tools, and AI-driven content recommendations.
+Professional investment platform built with Next.js 15, TypeScript, Tailwind CSS, Supabase, and an Express API backend.
+
+---
+
+## Architecture Overview
+
+The codebase is organized into two distinct domains:
+
+### 1. Frontend (`app/`, `components/`, `contexts/`, `lib/`, `public/`)
+* **Framework**: Next.js 15 App Router with TypeScript & Tailwind CSS.
+* **`app/`**: Application routes and pages:
+  * `/`: Marketing landing page (Hero, Features, Returns Calculator, Testimonials, FAQ, Footer)
+  * `/auth/login`, `/auth/signup`, `/auth/callback`: Investor and admin authentication flows
+  * `/dashboard`: Investor portal with live returns, portfolio tracking, and payment methods
+  * `/admin`: Administrator control center for approving investments and disbursements
+  * `/about`, `/contact`, `/terms`, `/privacy`: Information and legal pages
+* **`components/`**: Modular UI components:
+  * `components/`: Landing page sections (`hero-section.tsx`, `content-examples.tsx`, `features-section.tsx`, `detailed-features-section.tsx`, `case-studies.tsx`, `faq-section.tsx`, `navbar.tsx`, `footer.tsx`)
+  * `components/sigma/`: Investor dashboard (`InvestorDashboard.tsx`), admin portal (`AdminPortal.tsx`), auth page (`AuthPage.tsx`), and bottom navigation
+  * `components/ui/`: Reusable Radix UI primitives and styled components
+* **`contexts/`**: Shared state (`AuthContext.tsx`, `DropdownContext.tsx`).
+* **`lib/`**: Client utilities and Supabase browser client (`lib/sigma/supabaseClient.ts`, `lib/sigma/api.ts`).
+* **`public/`**: Static assets, brand icons, and service worker unregister handler.
+
+### 2. Server & Backend (`server/`, `supabase/`)
+* **Express API Engine** (`server/sigma-api.ts`):
+  * Running concurrently on port `4000` (proxied seamlessly through Next.js rewrites at `/api/*`).
+  * Handles investor profile synchronization, payment sessions, and admin allowlist authentication.
+  * Robust fallback handling for bank listings and offline resiliency.
+* **Payment Gateway** (`server/lib/flutterwaveV4.ts`):
+  * Handles card charges, auto-debit tokenization, and payout disbursements via Flutterwave v4 API.
+* **Database Schema** (`supabase/schema.sql`):
+  * PostgreSQL schemas, RLS policies, tables, and views for investments, payouts, and admin controls.
+
+---
 
 ## Getting Started
 
-First, install the dependencies:
-
+### Development
 ```bash
+# Install dependencies
 npm install
-```
 
-Then, run the development server:
-
-```bash
+# Start both Next.js Web (port 3000) and Express Server (port 4000) concurrently
 npm run dev
+
+# Or with Turbopack for ultra-fast compilation:
+npm run dev:turbo
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-## Available Scripts
-
-- `npm run dev`: Starts the development server.
-- `npm run build`: Builds the application for production.
-- `npm run start`: Starts a production server.
-- `npm run lint`: Lints the project files.
-
-## Environment Variables
-
-Create a `.env.local` file in the root of the project and add the following environment variables:
-
-```
-# Example environment variables
-NEXT_PUBLIC_API_URL=http://localhost:3000/api
-```
-
-See `.env.example` for a full list of environment variables.
-
-## Linting and Formatting
-
-This project uses ESLint and Prettier for code linting and formatting. To run the linter, use:
-
+### Build & Testing
 ```bash
-npm run lint
+# Build production bundle
+npm run build
+
+# Run test suite
+npm test
 ```
-
-## Testing
-
-This project will use Jest and React Testing Library for unit tests. Test files will be located next to the component they are testing.
-
-## CI/CD
-
-A GitHub Actions workflow will be set up in `.github/workflows/ci.yml` to run on every pull request. The workflow will install dependencies, run the linter, run tests, and build the project.

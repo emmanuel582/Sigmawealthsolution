@@ -26,7 +26,7 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-[#f0f2f4]">
       <Navbar />
       <main className="flex-1">
         <PageHeader
@@ -36,7 +36,7 @@ export default function ContactPage() {
         />
 
         <motion.section
-          className="py-12 md:py-24 lg:py-32 bg-white dark:bg-gray-950 scroll-mt-16"
+          className="py-12 md:py-24 lg:py-32 bg-[#f0f2f4] dark:bg-gray-950 scroll-mt-16"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
@@ -93,7 +93,7 @@ export default function ContactPage() {
                   className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border-gray-200 dark:border-gray-700"
                 />
               </div>
-              <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+              <Button type="submit" className="w-full bg-[#004324] hover:bg-[#00331c] text-white">
                 Send Message
               </Button>
             </motion.form>
@@ -101,14 +101,13 @@ export default function ContactPage() {
             <motion.div className="space-y-6" variants={infoVariants}>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Our Location</h2>
               <p className="text-gray-700 dark:text-gray-300">
-                NexTrend Headquarters
+                SigmawealthSolution
                 <br />
                 Harmony Gold estate olonde
                 <br />
                 Nigeria
               </p>
               <div className="w-full h-[300px] rounded-lg overflow-hidden shadow-md">
-                {/* Using a generic map for a location in Nigeria as a specific embed for "Harmony Gold estate olonde" is not readily available */}
                 <iframe
                   src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3963.3000000000005!2d3.379205!3d6.596929!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x103b9228b2222222%3A0x123456789abcdef!2sLagos%2C%20Nigeria!5e0!3m2!1sen!2sus!4v1678901234567!5m2!1sen!2sus"
                   width="100%"
@@ -117,13 +116,13 @@ export default function ContactPage() {
                   allowFullScreen={false}
                   loading="lazy"
                   referrerPolicy="no-referrer-when-downgrade"
-                  title="NexTrend Location"
+                  title="SigmawealthSolution Location"
                 ></iframe>
               </div>
               <p className="text-gray-700 dark:text-gray-300">
                 For general inquiries, please email us at{" "}
-                <a href="mailto:nextrend.ai5@gmail.com" className="text-blue-600 hover:underline">
-                  nextrend.ai5@gmail.com
+                <a href="mailto:hello@sigmawealthsolution.com" className="text-[#004324] hover:underline">
+                  hello@sigmawealthsolution.com
                 </a>
                 .
               </p>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -21,12 +22,18 @@ const MessageBubble = ({ role, content }: { role: "user" | "assistant"; content:
 )
 
 export default function ChatWidget() {
+  const pathname = usePathname()
+  const hideChat =
+    pathname?.startsWith("/dashboard") ||
+    pathname?.startsWith("/admin") ||
+    pathname?.startsWith("/auth")
+
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState("")
   const [messages, setMessages] = useState<ChatMsg[]>([
     { 
       role: "assistant", 
-      content: "Hello! I'm your NexTrend assistant. I can help you with any questions about our platform, features, or content. What would you like to know?" 
+      content: "Hello! I'm your SigmawealthSolution assistant. I can help with questions about investing, payouts, and our platform. What would you like to know?" 
     },
   ])
   const [loading, setLoading] = useState(false)
@@ -68,7 +75,7 @@ export default function ChatWidget() {
     if (lowerText.includes("where am i") || lowerText.includes("what page is this") || lowerText.includes("current page")) {
       setMessages(m => [...m, { 
         role: "assistant", 
-        content: `You're currently on the ${currentPage} page of the NexTrend platform.` 
+        content: `You're currently on the ${currentPage} page of the SigmawealthSolution platform.` 
       }])
       setLoading(false)
       return
@@ -78,7 +85,7 @@ export default function ChatWidget() {
     if (["hi", "hello", "hey"].some(greeting => lowerText.includes(greeting))) {
       setMessages(m => [...m, { 
         role: "assistant", 
-        content: `Hello! I'm the NexTrend assistant. I can help you with questions about our platform, content, or features. What would you like to know?` 
+        content: `Hello! I'm the SigmawealthSolution assistant. I can help you with questions about our platform, content, or features. What would you like to know?` 
       }])
       setLoading(false)
       return
@@ -119,6 +126,8 @@ export default function ChatWidget() {
     { label: "Contact Us", icon: Phone, prompt: "I'd like to contact support", intent: "contact" },
   ]
 
+  if (hideChat) return null
+
   return (
     <div className="fixed bottom-4 right-4 z-50">
       <div className="relative">
@@ -146,7 +155,7 @@ export default function ChatWidget() {
                 <div className="h-7 w-7 rounded-full bg-[#00CFFF]/20 flex items-center justify-center">
                   <MessageCircle className="h-4 w-4 text-[#00CFFF]" />
                 </div>
-                <SheetTitle className="text-base font-medium">NexTrend Assistant</SheetTitle>
+                <SheetTitle className="text-base font-medium">SigmawealthSolution Assistant</SheetTitle>
               </div>
               <Button 
                 variant="ghost" 

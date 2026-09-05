@@ -4,12 +4,14 @@ import { GeistMono } from 'geist/font/mono'
 import { ThemeProvider } from '@/components/theme-provider'
 import ChatWidget from '@/components/chat-widget'
 import { DropdownProvider } from '@/contexts/DropdownContext'
+import { AuthProvider } from '@/contexts/AuthContext'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'NexTrend ',
-  description: 'Created with NexTrend Team',
-  generator: 'Nextrend Team',
+  title: 'SigmawealthSolution | Smart Investing',
+  description:
+    'Invest from $100 to unlimited with SigmawealthSolution. Full monthly returns — 50% in two weeks, 50% at month end.',
+  generator: 'SigmawealthSolution',
 }
 
 export default function RootLayout({
@@ -18,28 +20,24 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <head>
-        <style>{`
-html {
-  font-family: ${GeistSans.style.fontFamily};
-  --font-sans: ${GeistSans.variable};
-  --font-mono: ${GeistMono.variable};
-}
-        `}</style>
-      </head>
-      <body>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${GeistSans.variable} ${GeistMono.variable}`}
+    >
+      <body className="bg-[#f0f2f4] antialiased">
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="light"
           enableSystem
           disableTransitionOnChange
         >
-          <DropdownProvider>
-            {children}
-            {/* Global website chatbot */}
-            <ChatWidget />
-          </DropdownProvider>
+          <AuthProvider>
+            <DropdownProvider>
+              {children}
+              <ChatWidget />
+            </DropdownProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

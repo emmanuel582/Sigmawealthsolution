@@ -3,15 +3,14 @@ import { Footer } from "@/components/footer";
 
 export default function PrivacyPolicyPage() {
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="flex flex-col min-h-screen bg-[#f0f2f4] dark:bg-gray-950">
       <Navbar />
       <main className="flex-1 container mx-auto px-4 md:px-6 py-8">
         <div className="prose dark:prose-invert max-w-none">
           <h1>Privacy Policy</h1>
           <p>
-            Your privacy is important to us. It is NexTrend's policy to respect your privacy regarding any information we
-            may collect from you across our website,{" "}
-            <a href="https://nextrend.ai">https://nextrend.ai</a>, and other sites we own and operate.
+            Your privacy is important to us. It is SigmawealthSolution&apos;s policy to respect your privacy regarding any information we
+            may collect from you across our website and other sites we own and operate.
           </p>
           <h2>1. Information we collect</h2>
           <h3>Log data</h3>
@@ -224,14 +223,14 @@ export default function PrivacyPolicyPage() {
             process your personal information, we will ask you to re-consent to the amended privacy policy.
           </p>
           <p>
-            <strong>NexTrend Data Controller</strong>
+            <strong>SigmawealthSolution Data Controller</strong>
             <br />
             [Your Name]
             <br />
             [Your Email]
           </p>
           <p>
-            <strong>NexTrend Data Protection Officer</strong>
+            <strong>SigmawealthSolution Data Protection Officer</strong>
             <br />
             [Your Name]
             <br />
