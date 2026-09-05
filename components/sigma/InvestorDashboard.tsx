@@ -206,6 +206,59 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
     }
   };
 
+  const handleVerifyBank = async () => {
+    if (!accountNumber || accountNumber.length !== 10 || !bankCode) {
+      setBankError('Please provide a valid 10-digit account number and select a bank.');
+      return;
+    }
+    setVerifyingAccount(true);
+    setBankError(null);
+    try {
+      const data = await verifyBankAccount(accountNumber, bankCode);
+      if (data?.account_name) {
+        setAccountName(data.account_name);
+        setBankSuccess('Account verified successfully!');
+        setTimeout(() => setBankSuccess(null), 3000);
+      } else {
+        setBankError('Could not resolve account name. Please check details.');
+      }
+    } catch (err: any) {
+      setBankError(err.message || 'Failed to verify account details.');
+    } finally {
+      setVerifyingAccount(false);
+    }
+  };
+
+  const handleSaveBank = async () => {
+    if (!user || !accountName || !accountNumber || !bankCode) {
+      setBankError('Please verify your account details before saving.');
+      return;
+    }
+    setSavingBank(true);
+    setBankError(null);
+    try {
+      const selectedBankObj = banksList.find((b) => b.code === bankCode);
+      const saved = await saveBankDetails({
+        userId: user.id,
+        accountNumber,
+        bankCode,
+        bankName: selectedBankObj?.name || 'Commercial Bank',
+        accountName,
+      });
+      setBankDetails(saved);
+      setBankSuccess('Bank destination saved for payouts!');
+      setTimeout(() => {
+        setBankSuccess(null);
+        setShowBankModal(false);
+      }, 1500);
+      await loadData();
+    } catch (err: any) {
+      setBankError(err.message || 'Failed to save bank details.');
+    } finally {
+      setSavingBank(false);
+    }
+  };
+
   const handleSaveAutoDebit = async () => {
     if (!user) return;
     const amount = Number(monthlyDebitAmount);
