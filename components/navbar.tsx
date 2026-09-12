@@ -105,7 +105,7 @@ export function Navbar() {
 
   return (
     <div>
-      <div className="h-[80px] sm:h-[92px]" />
+      <div className="h-[88px] sm:h-[100px]" />
       {/* Soft lit glass wash so content beneath the nav reads through when scrolled */}
       <div
         aria-hidden
@@ -134,22 +134,19 @@ export function Navbar() {
               : "bg-white/75 backdrop-blur-lg border-white/50 shadow-[0_4px_20px_rgba(0,0,0,0.05)]"
           }`}
         >
-          <div className="px-4 sm:px-6 md:px-8 flex justify-between items-center min-h-[56px] sm:min-h-[60px] py-2.5 sm:py-3">
+          <div className="px-3 sm:px-5 md:px-7 flex justify-between items-center min-h-[64px] sm:min-h-[72px] py-2 sm:py-2.5">
             <div className="flex items-center gap-4 md:gap-6 lg:gap-8 min-w-0">
-              <Link href="/" className="flex items-center gap-2.5 sm:gap-3.5 shrink-0" onClick={closeMobile}>
+              <Link
+                href="/"
+                className="flex items-center shrink-0"
+                onClick={closeMobile}
+                aria-label="SigmawealthSolution home"
+              >
                 <BrandLogo
-                  size={56}
+                  size={88}
                   priority
-                  className="rounded-xl w-12 h-12 sm:w-14 sm:h-14 md:w-[3.75rem] md:h-[3.75rem]"
+                  className="w-16 h-16 sm:w-[4.5rem] sm:h-[4.5rem] md:w-20 md:h-20"
                 />
-                <div className="flex flex-col items-start min-w-0">
-                  <h1 className="text-[#004324] text-base sm:text-xl md:text-2xl font-black leading-tight tracking-wide truncate max-w-[160px] sm:max-w-none">
-                    Sigmawealth
-                  </h1>
-                  <span className="text-[#004324] text-[10px] sm:text-xs italic tracking-widest hidden xs:block sm:block">
-                    Solution
-                  </span>
-                </div>
               </Link>
 
               <div className="hidden lg:flex items-center gap-5">

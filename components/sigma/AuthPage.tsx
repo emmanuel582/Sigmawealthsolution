@@ -20,7 +20,7 @@ function AuthHeroPanel() {
   return (
     <div className="relative w-full h-[calc(100vh-3rem)] max-h-[820px] min-h-[520px] rounded-[2rem] overflow-hidden shadow-2xl bg-[#163300]">
       <Image
-        src="/images/auth-hero.jpeg"
+        src="/images/pexels-karola-g-4386236.jpg"
         alt="Sigma Wealth Portal"
         fill
         priority

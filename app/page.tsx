@@ -16,12 +16,11 @@ import { useAuth } from "@/contexts/AuthContext"
 import { ADMIN_APP_PATH } from "@/lib/sigma/adminPath"
 import { BrandLoader } from "@/components/BrandLoader"
 
-
 export default function HomePage() {
   const router = useRouter()
   const { user, role, isLoading } = useAuth()
 
-  // Signed-in users skip marketing and go straight to the app
+  // Only signed-in (existing) users leave the marketing landing page
   useEffect(() => {
     if (isLoading || !user) return
     router.replace(role === "admin" ? ADMIN_APP_PATH : "/dashboard")
@@ -32,7 +31,9 @@ export default function HomePage() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.4, 0.0, 0.2, 1] } },
   }
 
-  if (isLoading || user) {
+  // Guests always see the landing page (even while auth is still checking).
+  // Logged-in users get a brief loader while we send them to the dashboard.
+  if (user) {
     return <BrandLoader />
   }
 

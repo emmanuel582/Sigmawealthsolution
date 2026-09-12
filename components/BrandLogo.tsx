@@ -7,23 +7,20 @@ type BrandLogoProps = {
   className?: string
   size?: number
   priority?: boolean
-  /** icon = crop-friendly square mark; full = full logo artwork */
+  /** Kept for call-site compat — always uses logo.png */
   variant?: "icon" | "full"
 }
 
-export function BrandLogo({ className, size = 40, priority, variant = "icon" }: BrandLogoProps) {
+/** Single brand asset: /images/logo.png (transparent). */
+export function BrandLogo({ className, size = 40, priority }: BrandLogoProps) {
   return (
     <Image
       src="/images/logo.png"
       alt="Sigma Wealth Solutions"
-      width={variant === "full" ? size * 2.2 : size}
+      width={size}
       height={size}
       priority={priority}
-      className={cn(
-        "object-contain select-none",
-        variant === "icon" && "rounded-lg",
-        className
-      )}
+      className={cn("object-contain select-none bg-transparent", className)}
     />
   )
 }
