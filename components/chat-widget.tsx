@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { usePathname } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { MessageCircle, Send, X, ChevronLeft } from "lucide-react"
+import { MessageCircle, Send, X } from "lucide-react"
 import { BrandLogo } from "@/components/BrandLogo"
 
 type ChatMsg = {
@@ -309,13 +309,13 @@ export default function ChatWidget() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.7, y: 16 }}
             transition={{ type: "spring", stiffness: 380, damping: 28 }}
-            className="fixed bottom-5 right-5 z-40"
+            className="fixed bottom-5 right-5 z-[50]"
           >
             <div className="relative">
               <button
                 onClick={openChat}
                 aria-label="Open support chat"
-                className="h-14 w-14 rounded-full bg-[#004324] text-[#9fe870] hover:bg-[#003319] hover:scale-105 active:scale-95 shadow-[0_8px_30px_rgba(0,67,36,0.35)] flex items-center justify-center transition-all duration-200 group cursor-pointer border border-[#9fe870]/30"
+                className="h-14 w-14 rounded-full bg-[#004324] text-[#9fe870] hover:bg-[#003319] hover:scale-105 active:scale-95 shadow-[0_8px_30px_rgba(0,67,36,0.35)] flex items-center justify-center transition-all duration-200 group cursor-pointer border border-[#9fe870]/30 touch-manipulation"
               >
                 <MessageCircle className="h-6 w-6 text-[#9fe870] group-hover:rotate-6 transition-transform" />
                 <span className="absolute top-0 right-0 flex h-3.5 w-3.5">
@@ -381,25 +381,16 @@ export default function ChatWidget() {
               className="absolute inset-0 sm:inset-4 md:inset-8 lg:left-auto lg:right-8 lg:top-8 lg:bottom-8 lg:w-[440px] bg-[#f4f7f4] flex flex-col overflow-hidden sm:rounded-3xl shadow-[0_25px_80px_rgba(0,67,36,0.35)] border border-white/40"
             >
               <header className="bg-[#004324] text-white px-4 sm:px-6 py-3.5 sm:py-4 shadow-md flex items-center justify-between border-b border-[#9fe870]/20 shrink-0">
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setOpen(false)}
-                    className="sm:hidden p-1.5 -ml-1.5 rounded-full hover:bg-white/10 active:scale-95 text-white"
-                    aria-label="Back"
-                  >
-                    <ChevronLeft className="w-6 h-6" />
-                  </button>
-
-                  <div className="relative">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative shrink-0">
                     <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/20 bg-black/30 flex items-center justify-center">
                       <BrandLogo size={36} className="rounded-lg" />
                     </div>
                     <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#9fe870] border-2 border-[#004324] rounded-full" />
                   </div>
 
-                  <div>
-                    <h2 className="text-sm sm:text-base font-bold text-white tracking-tight">Sigmawealth</h2>
+                  <div className="min-w-0">
+                    <h2 className="text-sm sm:text-base font-bold text-white tracking-tight truncate">Sigmawealth</h2>
                     <p className="text-[11px] text-[#9fe870]/80 flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#9fe870] animate-pulse" />
                       {peerTyping ? "Support is typing…" : connecting ? "Connecting…" : "Online · Live support"}
@@ -411,7 +402,7 @@ export default function ChatWidget() {
                   type="button"
                   onClick={() => setOpen(false)}
                   aria-label="Close chat"
-                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 text-white flex items-center justify-center transition-all cursor-pointer shadow-sm border border-white/10"
+                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 text-white flex items-center justify-center transition-all cursor-pointer shadow-sm border border-white/10 shrink-0"
                 >
                   <X className="w-5 h-5" />
                 </button>

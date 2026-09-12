@@ -106,6 +106,17 @@ export function Navbar() {
   return (
     <div>
       <div className="h-[80px] sm:h-[92px]" />
+      {/* Soft lit glass wash so content beneath the nav reads through when scrolled */}
+      <div
+        aria-hidden
+        className={`fixed top-0 left-0 right-0 z-[9990] pointer-events-none transition-opacity duration-500 ${
+          chatOpen || !isVisible ? "opacity-0" : isScrolled ? "opacity-100" : "opacity-0"
+        }`}
+      >
+        <div className="h-28 bg-gradient-to-b from-white/70 via-white/35 to-transparent backdrop-blur-[2px]" />
+        <div className="absolute inset-x-0 top-0 h-20 bg-[radial-gradient(ellipse_at_top,_rgba(159,232,112,0.18),_transparent_65%)]" />
+      </div>
+
       <nav
         ref={navRef}
         className={`fixed top-0 left-0 right-0 z-[10000] px-3 pt-3 sm:px-4 sm:pt-4 transition-all duration-300 ${
@@ -119,8 +130,8 @@ export function Navbar() {
         <div
           className={`w-[95%] max-w-[1080px] mx-auto rounded-2xl border transition-all duration-300 ${
             isScrolled || isMobileMenuOpen
-              ? "bg-white/95 backdrop-blur-xl border-white/60 shadow-[0_8px_32px_rgba(0,67,36,0.12),0_2px_8px_rgba(0,0,0,0.06)]"
-              : "bg-white/80 backdrop-blur-lg border-white/50 shadow-[0_4px_20px_rgba(0,0,0,0.05)]"
+              ? "bg-white/55 backdrop-blur-2xl border-white/70 shadow-[0_12px_40px_rgba(0,67,36,0.14),0_2px_8px_rgba(255,255,255,0.5)_inset] ring-1 ring-[#9fe870]/25"
+              : "bg-white/75 backdrop-blur-lg border-white/50 shadow-[0_4px_20px_rgba(0,0,0,0.05)]"
           }`}
         >
           <div className="px-4 sm:px-6 md:px-8 flex justify-between items-center min-h-[56px] sm:min-h-[60px] py-2.5 sm:py-3">
