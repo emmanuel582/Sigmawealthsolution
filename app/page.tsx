@@ -31,9 +31,10 @@ export default function HomePage() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.4, 0.0, 0.2, 1] } },
   }
 
-  // Guests always see the landing page (even while auth is still checking).
-  // Logged-in users get a brief loader while we send them to the dashboard.
-  if (user) {
+  // Wait for auth before painting the landing — avoids a flash for signed-in users.
+  // Guests see the marketing page only after we know they are not authenticated.
+  // Existing users get the loader, then dashboard/admin.
+  if (isLoading || user) {
     return <BrandLoader />
   }
 

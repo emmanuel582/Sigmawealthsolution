@@ -86,70 +86,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    let mounted = true;
+    let mounted = true
+    let authSubscription: { unsubscribe: () => void } | null = null
+
+    // Failsafe only — keep loader up until real auth init finishes (avoids landing flash)
+    const timeoutId = setTimeout(() => {
+      if (mounted) setIsLoading(false)
+    }, 10000)
 
     async function initAuth() {
-      // Failsafe timer to prevent infinite loading spinners under any circumstance
-      const timeoutId = setTimeout(() => {
-        if (mounted) setIsLoading(false);
-      }, 1500);
-
       try {
         if (isSupabaseConfigured) {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (mounted && session?.user) {
-            await syncUserState(session.user);
-          } else if (mounted) {
-            // Check fallback server session
-            const res = await fetch('/api/auth/current-session');
+          const {
+            data: { session },
+          } = await supabase.auth.getSession()
+          if (!mounted) return
+
+          if (session?.user) {
+            await syncUserState(session.user)
+          } else {
+            const res = await fetch("/api/auth/current-session")
+            if (!mounted) return
             if (res.ok) {
-              const data = await res.json();
-              if (mounted && data.user) {
-                await syncUserState(data.user);
+              const data = await res.json()
+              if (data.user) {
+                await syncUserState(data.user)
               } else {
-                setIsLoading(false);
+                setIsLoading(false)
               }
             } else {
-              setIsLoading(false);
+              setIsLoading(false)
             }
           }
 
-          const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+          const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
             if (mounted) {
-              await syncUserState(session?.user ?? null);
+              await syncUserState(nextSession?.user ?? null)
             }
-          });
-
-          return () => {
-            clearTimeout(timeoutId);
-            authListener?.subscription.unsubscribe();
-          };
+          })
+          authSubscription = authListener?.subscription ?? null
         } else {
-          // Fallback local session checking via backend session endpoint
-          const res = await fetch('/api/auth/current-session');
+          const res = await fetch("/api/auth/current-session")
+          if (!mounted) return
           if (res.ok) {
-            const data = await res.json();
-            if (mounted && data.user) {
-              await syncUserState(data.user);
-            } else if (mounted) {
-              setIsLoading(false);
+            const data = await res.json()
+            if (data.user) {
+              await syncUserState(data.user)
+            } else {
+              setIsLoading(false)
             }
-          } else if (mounted) {
-            setIsLoading(false);
+          } else {
+            setIsLoading(false)
           }
         }
       } catch (e) {
-        console.warn('Auth init check error:', e);
-        if (mounted) setIsLoading(false);
+        console.warn("Auth init check error:", e)
+        if (mounted) setIsLoading(false)
+      } finally {
+        clearTimeout(timeoutId)
       }
     }
 
-    initAuth();
+    initAuth()
 
     return () => {
-      mounted = false;
-    };
-  }, []);
+      mounted = false
+      clearTimeout(timeoutId)
+      authSubscription?.unsubscribe()
+    }
+  }, [])
 
   const refreshProfile = async () => {
     if (!user) return;
