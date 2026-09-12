@@ -90,6 +90,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
 
   // Modals
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentTab, setPaymentTab] = useState<'one-time' | 'monthly'>('one-time');
   const [showNotificationPopover, setShowNotificationPopover] = useState(false);
   const [selectedPhase] = useState('Active Plan');
   const [customAmount, setCustomAmount] = useState<string>('');
@@ -302,7 +303,11 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
     });
 
     if (verified.success) {
-      setActionSuccess(`Payment of ${formatNaira(params.amount)} confirmed. Investment credited.`);
+      setActionSuccess(
+        params.isRecurring
+          ? `Payment of ${formatNaira(params.amount)} confirmed. Monthly auto-debit is now active.`
+          : `Payment of ${formatNaira(params.amount)} confirmed. Investment credited.`
+      );
       setTimeout(() => setActionSuccess(null), 5000);
       await refreshProfile();
       await loadData();
@@ -347,11 +352,12 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
     })();
   }, [user?.id]);
 
-  const handleFlutterwavePayment = async () => {
+  const handleFlutterwavePayment = async (opts?: { recurring?: boolean }) => {
     if (!user) return;
-    const amount = Number(customAmount);
+    const isRecurring = Boolean(opts?.recurring) || paymentTab === 'monthly';
+    const amount = Number(isRecurring ? (customAmount || monthlyDebitAmount) : customAmount);
     if (!amount || amount <= 0) {
-      setActionError('Enter a valid investment amount.');
+      setActionError(isRecurring ? 'Enter a valid monthly amount.' : 'Enter a valid investment amount.');
       setTimeout(() => setActionError(null), 4000);
       return;
     }
@@ -361,7 +367,26 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
       return;
     }
 
-    const isRecurring = false;
+    // If card already on file and setting monthly amount only, skip checkout
+    if (isRecurring && cardDetails?.flutterwave_card_token) {
+      setProcessingPayment(true);
+      try {
+        const plan = await saveAutoDebitPlan(user.id, amount);
+        setAutoDebitPlan(plan);
+        setMonthlyDebitAmount(String(amount));
+        setShowPaymentModal(false);
+        setActionSuccess(`Monthly auto-debit of ${formatNaira(amount)} activated. Your saved card will be charged each month.`);
+        setTimeout(() => setActionSuccess(null), 5000);
+        await loadData();
+      } catch (err: any) {
+        setActionError(err.message || 'Could not activate monthly auto-debit');
+        setTimeout(() => setActionError(null), 5000);
+      } finally {
+        setProcessingPayment(false);
+      }
+      return;
+    }
+
     setProcessingPayment(true);
 
     try {
@@ -1033,19 +1058,67 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
               </button>
             </div>
 
+            <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#edefeb]">
+              <button
+                type="button"
+                onClick={() => setPaymentTab('one-time')}
+                disabled={processingPayment}
+                className={`py-2.5 rounded-lg text-xs sm:text-sm font-bold transition ${
+                  paymentTab === 'one-time'
+                    ? 'bg-white text-[#163300] shadow-sm'
+                    : 'text-[#163300]/55 hover:text-[#163300]'
+                }`}
+              >
+                One-time
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentTab('monthly')}
+                disabled={processingPayment}
+                className={`py-2.5 rounded-lg text-xs sm:text-sm font-bold transition ${
+                  paymentTab === 'monthly'
+                    ? 'bg-white text-[#163300] shadow-sm'
+                    : 'text-[#163300]/55 hover:text-[#163300]'
+                }`}
+              >
+                Monthly auto-debit
+              </button>
+            </div>
+
             <div className="space-y-4">
-              <div className="p-3.5 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-700 leading-relaxed">
-                <strong>One-time contribution:</strong> Pay securely via Flutterwave checkout for your deposit.
-              </div>
+              {paymentTab === 'one-time' ? (
+                <div className="p-3.5 rounded-xl bg-sky-50 border border-sky-100 text-xs text-slate-700 leading-relaxed">
+                  <strong>One-time contribution:</strong> Pay securely via Flutterwave checkout for your deposit.
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-100 text-xs text-slate-700 leading-relaxed space-y-1.5">
+                  <p>
+                    <strong>Monthly auto-debit:</strong> Set the amount to remove from your card every month.
+                  </p>
+                  <p className="text-[#163300]/70">
+                    {cardDetails?.flutterwave_card_token
+                      ? `Saved card •••• ${cardDetails.card_last4 || '****'} will be charged automatically.`
+                      : 'Your first payment saves the card securely with Flutterwave, then monthly charges run on schedule.'}
+                  </p>
+                  {autoDebitPlan?.active && (
+                    <p className="font-semibold text-emerald-800">
+                      Active plan: {formatNaira(autoDebitPlan.amount)} · next {autoDebitPlan.next_charge_date ? formatDate(autoDebitPlan.next_charge_date) : '—'}
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Deposit Amount (₦)
+                  {paymentTab === 'monthly' ? 'Monthly Amount (₦)' : 'Deposit Amount (₦)'}
                 </label>
                 <input
                   type="number"
                   value={customAmount}
-                  onChange={(e) => setCustomAmount(e.target.value)}
+                  onChange={(e) => {
+                    setCustomAmount(e.target.value);
+                    if (paymentTab === 'monthly') setMonthlyDebitAmount(e.target.value);
+                  }}
                   disabled={processingPayment}
                   className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-sm font-mono text-slate-900 focus:ring-2 focus:ring-slate-900 disabled:bg-slate-50 disabled:text-slate-400"
                   placeholder="Enter amount"
@@ -1053,20 +1126,22 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
               </div>
 
               <button
-                onClick={handleFlutterwavePayment}
+                onClick={() => handleFlutterwavePayment({ recurring: paymentTab === 'monthly' })}
                 disabled={processingPayment || !flutterwaveConfigured}
                 className="w-full py-3 rounded-xl text-sm font-bold bg-slate-900 text-white hover:bg-slate-800 transition flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 <span>
                   {processingPayment
                     ? 'Processing…'
-                    : `Pay ${customAmount ? formatNaira(customAmount) : 'now'} via Flutterwave`}
+                    : paymentTab === 'monthly'
+                      ? cardDetails?.flutterwave_card_token
+                        ? `Activate ${customAmount ? formatNaira(customAmount) : 'monthly'} auto-debit`
+                        : `Pay & set up ${customAmount ? formatNaira(customAmount) : 'monthly'} auto-debit`
+                      : `Pay ${customAmount ? formatNaira(customAmount) : 'now'} via Flutterwave`}
                 </span>
                 <ArrowUpRight className="w-4 h-4" />
               </button>
             </div>
-
-
 
           </motion.div>
         </div>

@@ -89,7 +89,7 @@ export function HeroSection() {
           >
             <div className="relative w-full max-w-xs sm:max-w-md lg:max-w-lg">
               <Image
-                src="/images/banner_rt_img.webp"
+                src="/images/Gemini_Generated_Image_w40uojw40uojw40u.jpg"
                 alt="SigmawealthSolution investor platform"
                 width={600}
                 height={400}

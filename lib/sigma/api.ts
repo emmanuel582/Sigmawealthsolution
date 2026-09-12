@@ -380,7 +380,10 @@ export async function togglePlatformPayoutMode(newMode: 'automatic' | 'manual', 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ mode: newMode, adminName }),
   });
-  if (!res.ok) throw new Error('Failed to toggle payout mode');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to toggle payout mode. Is the Sigma API running?');
+  }
   return await res.json();
 }
 
@@ -395,7 +398,34 @@ export async function executeManualPayout(payload: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error('Failed to process manual payout');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to process manual payout');
+  }
+  return await res.json();
+}
+
+export async function executeManualPayoutBatch(payload: {
+  userIds?: string[];
+  payAllDue?: boolean;
+  adminName: string;
+  referenceNote: string;
+}): Promise<{
+  success: boolean;
+  paid: number;
+  failed: number;
+  skipped: number;
+  results: Array<{ userId: string; status: string; amount?: number; message?: string }>;
+}> {
+  const res = await fetch(`${API_BASE}/admin/payouts/manual-batch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to process batch payouts');
+  }
   return await res.json();
 }
 
@@ -433,5 +463,91 @@ export async function sendBroadcastNotification(payload: {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || 'Failed to send notification');
   }
+  return await res.json();
+}
+
+// ---------------- LIVE SUPPORT CHAT ----------------
+
+export type SupportConversation = {
+  id: string;
+  guest_id?: string | null;
+  user_id?: string | null;
+  visitor_name?: string;
+  visitor_email?: string | null;
+  status: string;
+  unread_admin?: number;
+  unread_user?: number;
+  last_message_at?: string;
+  last_message_preview?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type SupportMessage = {
+  id: string;
+  conversation_id: string;
+  sender: 'user' | 'admin';
+  sender_name?: string;
+  content: string;
+  status?: string;
+  created_at: string;
+};
+
+export async function fetchAdminSupportConversations(): Promise<{
+  conversations: SupportConversation[];
+  pendingCount: number;
+}> {
+  const res = await fetch(`${API_BASE}/support/admin/conversations`);
+  if (!res.ok) throw new Error('Failed to load support conversations');
+  return await res.json();
+}
+
+export async function fetchSupportConversation(
+  id: string,
+  as: 'admin' | 'user' = 'admin'
+): Promise<{
+  conversation: SupportConversation;
+  messages: SupportMessage[];
+  typing?: { role: string; name: string; at: number } | null;
+}> {
+  const res = await fetch(`${API_BASE}/support/conversations/${id}?as=${as}`);
+  if (!res.ok) throw new Error('Failed to load conversation');
+  return await res.json();
+}
+
+export async function sendSupportMessage(
+  conversationId: string,
+  payload: { content: string; sender: 'user' | 'admin'; senderName?: string }
+) {
+  const res = await fetch(`${API_BASE}/support/conversations/${conversationId}/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to send message');
+  }
+  return await res.json();
+}
+
+export async function setSupportTyping(
+  conversationId: string,
+  payload: { role: 'user' | 'admin'; typing: boolean; name?: string }
+) {
+  await fetch(`${API_BASE}/support/conversations/${conversationId}/typing`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }).catch(() => {});
+}
+
+export async function updateSupportConversationStatus(conversationId: string, status: string) {
+  const res = await fetch(`${API_BASE}/support/conversations/${conversationId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error('Failed to update conversation');
   return await res.json();
 }

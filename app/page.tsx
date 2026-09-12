@@ -13,6 +13,9 @@ import { Footer } from "@/components/footer"
 import { ScrollToTop } from "@/components/scroll-to-top"
 import { motion, type Variants } from "framer-motion"
 import { useAuth } from "@/contexts/AuthContext"
+import { ADMIN_APP_PATH } from "@/lib/sigma/adminPath"
+import { BrandLoader } from "@/components/BrandLoader"
+
 
 export default function HomePage() {
   const router = useRouter()
@@ -21,7 +24,7 @@ export default function HomePage() {
   // Signed-in users skip marketing and go straight to the app
   useEffect(() => {
     if (isLoading || !user) return
-    router.replace(role === "admin" ? "/admin" : "/dashboard")
+    router.replace(role === "admin" ? ADMIN_APP_PATH : "/dashboard")
   }, [user, role, isLoading, router])
 
   const sectionVariants: Variants = {
@@ -31,12 +34,7 @@ export default function HomePage() {
 
   if (isLoading || user) {
     return (
-      <div className="min-h-screen bg-[#edefeb] flex flex-col items-center justify-center gap-3">
-        <div className="w-10 h-10 border-4 border-[#163300] border-t-[#9fe870] rounded-full animate-spin" />
-        <span className="text-xs font-semibold text-[#163300]/60">
-          {user ? "Opening your app…" : "Loading…"}
-        </span>
-      </div>
+      <BrandLoader label={user ? "Opening your secure workspace…" : "Loading Sigma Wealth…"} />
     )
   }
 

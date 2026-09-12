@@ -2,7 +2,6 @@
 
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
-import { PageHeader } from "@/components/page-header"
 import Image from "next/image"
 import { motion } from "framer-motion"
 
@@ -31,98 +30,118 @@ export default function AboutPage() {
     },
   ]
 
-  const sectionVariants = {
-    hidden: { opacity: 0, y: 50 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20, scale: 0.98 },
-    visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.5, ease: "easeOut" } },
-  }
-
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f2f4]">
       <Navbar />
       <main className="flex-1">
-        <PageHeader
-          title="About SigmawealthSolution"
-          description="We help people grow wealth with clear monthly returns — from $100 to unlimited."
-          imageUrl="/images/about-header.jpeg"
-        />
+        <section className="relative overflow-hidden bg-[#0d1a12] text-white">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(159,232,112,0.12),_transparent_55%)]" />
+          <div className="relative w-[95%] max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
+            <p className="text-[#9fe870] text-sm font-semibold tracking-wide mb-3">About us</p>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight max-w-2xl">
+              About SigmawealthSolution
+            </h1>
+            <p className="mt-4 text-white/65 text-base sm:text-lg max-w-xl leading-relaxed">
+              We help people grow wealth with clear monthly returns — from $100 to unlimited.
+            </p>
+          </div>
+        </section>
 
-        <motion.section
-          className="py-12 md:py-24 lg:py-32 bg-[#f0f2f4] scroll-mt-16"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.2 }}
-          variants={sectionVariants}
-        >
-          <div className="w-[95%] max-w-4xl mx-auto px-4 sm:px-6 space-y-12">
-            <motion.div variants={itemVariants}>
-              <div className="space-y-4">
-                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">Our Mission</h2>
-                <p className="text-base sm:text-lg text-gray-700">
-                  To make investing simple and transparent. With SigmawealthSolution you invest from $100 upward,
-                  receive 50% of your return in the first two weeks, and the remaining 50% at month end — a full
-                  return cycle every month.
-                </p>
-              </div>
-            </motion.div>
+        <section className="py-10 sm:py-14 md:py-16">
+          <div className="w-[95%] max-w-4xl mx-auto px-4 sm:px-6 space-y-4 sm:space-y-5">
+            <motion.article
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="rounded-2xl bg-[#163300] text-white p-6 sm:p-8 shadow-lg border border-white/5"
+            >
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-4">Mission</h2>
+              <p className="text-white/80 leading-relaxed text-sm sm:text-base mb-4">
+                Our mission is to create a new generation of investment opportunities by connecting investors with
+                high-growth strategies across the world&apos;s most dynamic financial markets. Through active market
+                participation, innovative approaches, and investor engagement, we aim to transform market volatility into
+                opportunities for growth.
+              </p>
+              <p className="text-white/80 leading-relaxed text-sm sm:text-base">
+                We believe investors deserve access to opportunities traditionally reserved for sophisticated market
+                participants — made simple, transparent, and accessible.
+              </p>
+            </motion.article>
 
-            <motion.div variants={itemVariants}>
-              <div className="space-y-4">
-                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">Who We Serve</h2>
-                <ul className="list-disc list-inside text-base sm:text-lg text-gray-700 space-y-2">
-                  <li>First-time and growing investors</li>
-                  <li>People who want twice-monthly payouts</li>
-                  <li>Investors who prefer auto-debit or one-time deposits</li>
-                  <li>Anyone seeking a clear, dashboard-driven investment experience</li>
-                </ul>
-              </div>
-            </motion.div>
+            <motion.article
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="rounded-2xl bg-[#163300] text-white p-6 sm:p-8 shadow-lg border border-white/5"
+            >
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-4">Vision</h2>
+              <p className="text-white/80 leading-relaxed text-sm sm:text-base mb-4">
+                Our vision is to become a leading global investment platform, recognized for innovation, accessibility,
+                and exceptional investor experiences.
+              </p>
+              <p className="text-white/80 leading-relaxed text-sm sm:text-base mb-5">
+                We envision a future in which individuals from all backgrounds can participate in dynamic financial
+                markets and pursue meaningful wealth creation through a modern digital investment ecosystem.
+              </p>
+              <p className="text-sm sm:text-base">
+                <span className="font-bold text-[#9fe870]">Our philosophy:</span>{" "}
+                <em className="text-white/75">
+                  &ldquo;Where market volatility becomes opportunity, and opportunity becomes growth.&rdquo;
+                </em>
+              </p>
+            </motion.article>
 
-            <motion.div variants={itemVariants}>
-              <div className="space-y-4">
-                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">How Investing Works</h2>
-                <ul className="list-disc list-inside text-base sm:text-lg text-gray-700 space-y-2">
-                  <li>Minimum investment: $100 (unlimited maximum)</li>
-                  <li>Full return of investment within one month</li>
-                  <li>50% paid at two weeks · 50% paid at month end</li>
-                  <li>Fund via Paystack debit card, monthly auto-debit, or Opay transfer</li>
-                </ul>
-              </div>
-            </motion.div>
+            <motion.article
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="rounded-2xl bg-white border border-[#163300]/10 p-6 sm:p-8 shadow-sm"
+            >
+              <h2 className="text-xl sm:text-2xl font-bold text-[#163300] mb-4">How investing works</h2>
+              <ul className="space-y-3">
+                {[
+                  "Minimum investment: $100 (unlimited maximum)",
+                  "Full return of investment within one month",
+                  "50% paid at two weeks · 50% paid at month end",
+                  "Fund via Flutterwave debit card, monthly auto-debit, or Opay transfer",
+                ].map((item) => (
+                  <li key={item} className="flex gap-3 text-sm sm:text-base text-[#163300]/75 leading-relaxed">
+                    <span className="mt-2 w-1.5 h-1.5 rounded-full bg-[#004324] shrink-0" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </motion.article>
 
-            <div className="space-y-8">
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-center text-gray-900">Our Team</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-                {teamMembers.map((member, index) => (
+            <div className="pt-6 sm:pt-8">
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-center text-[#163300] mb-8">
+                Our Team
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
+                {teamMembers.map((member) => (
                   <motion.div
-                    key={index}
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, amount: 0.2 }}
-                    variants={itemVariants}
+                    key={member.name}
+                    initial={{ opacity: 0, y: 12 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    className="flex flex-col items-center text-center bg-white p-6 rounded-2xl border border-[#163300]/8 shadow-sm"
                   >
-                    <div className="flex flex-col items-center text-center bg-gray-50 p-6 rounded-2xl transition-all duration-300 hover:shadow-lg">
-                      <Image
-                        src={member.avatar}
-                        alt={member.name}
-                        width={120}
-                        height={120}
-                        className="rounded-full mb-4 object-cover"
-                      />
-                      <h3 className="text-xl font-semibold text-gray-900">{member.name}</h3>
-                      <p className="text-[#004324] mb-2">{member.role}</p>
-                      <p className="text-gray-700 text-sm">{member.description}</p>
-                    </div>
+                    <Image
+                      src={member.avatar}
+                      alt={member.name}
+                      width={120}
+                      height={120}
+                      className="rounded-full mb-4 object-cover w-[120px] h-[120px]"
+                    />
+                    <h3 className="text-xl font-semibold text-[#163300]">{member.name}</h3>
+                    <p className="text-[#004324] mb-2 text-sm font-medium">{member.role}</p>
+                    <p className="text-[#163300]/65 text-sm leading-relaxed">{member.description}</p>
                   </motion.div>
                 ))}
               </div>
             </div>
           </div>
-        </motion.section>
+        </section>
       </main>
       <Footer />
     </div>

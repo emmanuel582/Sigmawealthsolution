@@ -14,9 +14,17 @@ import {
   fetchAdminPayouts,
   togglePlatformPayoutMode,
   executeManualPayout,
+  executeManualPayoutBatch,
   triggerScheduledPayoutRun,
   fetchAdminNotifications,
   sendBroadcastNotification,
+  fetchAdminSupportConversations,
+  fetchSupportConversation,
+  sendSupportMessage,
+  setSupportTyping,
+  updateSupportConversationStatus,
+  type SupportConversation,
+  type SupportMessage,
 } from "@/lib/sigma/api"
 import {
   Profile,
@@ -71,9 +79,12 @@ import {
   Info,
   Sparkles,
   Calendar,
+  MessageSquare,
 } from "lucide-react"
+import { BrandLogo } from "@/components/BrandLogo"
+import { BrandLoader } from "@/components/BrandLoader"
 
-type AdminTab = "overview" | "investors" | "payments" | "payouts" | "notifications" | "settings"
+type AdminTab = "overview" | "investors" | "payments" | "payouts" | "notifications" | "support" | "settings"
 
 interface AdminPortalProps {
   onNavigate: (view: string) => void
@@ -165,6 +176,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
   const [manualPayTarget, setManualPayTarget] = useState<any | null>(null)
   const [manualPayReferenceNote, setManualPayReferenceNote] = useState("")
   const [processingManualPay, setProcessingManualPay] = useState(false)
+  const [selectedPayoutIds, setSelectedPayoutIds] = useState<string[]>([])
+  const [batchPaying, setBatchPaying] = useState(false)
   const [cronRunning, setCronRunning] = useState(false)
   const [cronResult, setCronResult] = useState<PayoutCronResult | null>(null)
   const [syncingFlw, setSyncingFlw] = useState(false)
@@ -186,6 +199,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
   const [adminAuthError, setAdminAuthError] = useState<string | null>(null)
   const [adminAuthenticating, setAdminAuthenticating] = useState(false)
 
+  const [supportConversations, setSupportConversations] = useState<SupportConversation[]>([])
+  const [supportPendingCount, setSupportPendingCount] = useState(0)
+  const [selectedSupportId, setSelectedSupportId] = useState<string | null>(null)
+  const [supportMessages, setSupportMessages] = useState<SupportMessage[]>([])
+  const [supportReply, setSupportReply] = useState("")
+  const [supportSending, setSupportSending] = useState(false)
+  const [visitorTyping, setVisitorTyping] = useState(false)
+  const supportTypingTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const showToast = (msg: string) => {
     setToastMessage(msg)
     setTimeout(() => setToastMessage(null), 4000)
@@ -194,18 +216,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
   const loadAllAdminData = async () => {
     setLoading(true)
     try {
-      const [overview, invRes, pays, paysOut, notifs] = await Promise.all([
+      const [overview, invRes, pays, paysOut, notifs, support] = await Promise.all([
         fetchAdminOverview(),
         fetchAdminInvestors(),
         fetchAdminPayments(),
         fetchAdminPayouts(),
         fetchAdminNotifications(),
+        fetchAdminSupportConversations().catch(() => ({ conversations: [], pendingCount: 0 })),
       ])
       setOverviewData(overview)
       setInvestors(invRes.investors || [])
       setPayments(pays || [])
       setPayoutsData(paysOut)
       setNotifications(notifs || [])
+      setSupportConversations(support.conversations || [])
+      setSupportPendingCount(support.pendingCount || 0)
     } catch (err) {
       console.error("Failed to load admin datasets:", err)
       showToast("Could not load admin data. Check API connection.")
@@ -213,6 +238,42 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
       setLoading(false)
     }
   }
+
+  const refreshSupportInbox = async () => {
+    try {
+      const support = await fetchAdminSupportConversations()
+      setSupportConversations(support.conversations || [])
+      setSupportPendingCount(support.pendingCount || 0)
+    } catch {
+      /* soft fail */
+    }
+  }
+
+  useEffect(() => {
+    if (!isAdminVerified || activeTab !== "support") return
+    let cancelled = false
+
+    const tick = async () => {
+      try {
+        await refreshSupportInbox()
+        if (selectedSupportId && !cancelled) {
+          const data = await fetchSupportConversation(selectedSupportId, "admin")
+          if (cancelled) return
+          setSupportMessages(data.messages || [])
+          setVisitorTyping(Boolean(data.typing && data.typing.role === "user"))
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    tick()
+    const interval = setInterval(tick, 1500)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [isAdminVerified, activeTab, selectedSupportId])
 
   useEffect(() => {
     async function verifyAccess() {
@@ -305,8 +366,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
     const targetMode = payoutsData.payoutMode === "automatic" ? "manual" : "automatic"
     setTogglingMode(true)
     try {
-      await togglePlatformPayoutMode(targetMode, user.name || user.email || "Admin")
-      showToast(`Payout mode → ${targetMode}`)
+      const result = await togglePlatformPayoutMode(targetMode, user.name || user.email || "Admin")
+      setPayoutsData((prev) => (prev ? { ...prev, payoutMode: result.mode } : prev))
+      setOverviewData((prev) =>
+        prev
+          ? {
+              ...prev,
+              kpis: { ...prev.kpis, payoutMode: result.mode },
+            }
+          : prev
+      )
+      showToast(`Payout mode → ${result.mode}`)
       setShowModeToggleModal(false)
       await loadAllAdminData()
     } catch (err: any) {
@@ -332,11 +402,45 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
       showToast(`Paid ${formatNaira(manualPayTarget.amount)}`)
       setManualPayTarget(null)
       setManualPayReferenceNote("")
+      setSelectedPayoutIds((ids) => ids.filter((id) => id !== manualPayTarget.userId))
       await loadAllAdminData()
     } catch (err: any) {
       showToast(err.message || "Manual payout failed")
     } finally {
       setProcessingManualPay(false)
+    }
+  }
+
+  const handleBatchManualPay = async (payAllDue = false) => {
+    if (!user) return
+    const note = window.prompt(
+      payAllDue
+        ? "Reference note for mass payout to ALL due investors:"
+        : "Reference note for selected investors:"
+    )
+    if (!note?.trim()) {
+      showToast("Reference note required")
+      return
+    }
+    if (!payAllDue && selectedPayoutIds.length === 0) {
+      showToast("Select at least one investor")
+      return
+    }
+    setBatchPaying(true)
+    try {
+      const result = await executeManualPayoutBatch({
+        userIds: payAllDue ? undefined : selectedPayoutIds,
+        payAllDue,
+        adminName: user.name || user.email || "Admin",
+        referenceNote: note.trim(),
+      })
+      showToast(`Batch done · ${result.paid} paid · ${result.failed} failed`)
+      setSelectedPayoutIds([])
+      await loadAllAdminData()
+    } catch (err: any) {
+      showToast(err.message || "Batch payout failed")
+    } finally {
+      setBatchPaying(false)
     }
   }
 
@@ -502,16 +606,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
       badge: (payoutsData?.payoutMode || "auto").slice(0, 4).toUpperCase(),
     },
     { id: "notifications", label: "Alerts", icon: Bell, badge: String(notifications.length) },
+    { id: "support", label: "Support", icon: MessageSquare, badge: String(supportPendingCount) },
     { id: "settings", label: "Settings", icon: Settings },
   ]
 
   if (isVerifying) {
-    return (
-      <div className="min-h-screen bg-[#edefeb] flex flex-col items-center justify-center gap-3">
-        <div className="w-10 h-10 border-4 border-[#163300] border-t-[#9fe870] rounded-full animate-spin" />
-        <span className="text-xs font-semibold text-[#163300]/60">Verifying admin access…</span>
-      </div>
-    )
+    return <BrandLoader label="Verifying secure ops access…" />
   }
 
   if (!isAdminVerified) {
@@ -631,12 +731,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
       <aside className="hidden lg:flex lg:flex-col w-64 bg-[#163300] shrink-0 h-screen sticky top-0">
         <div className="p-5 border-b border-[#9fe870]/15">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#9fe870] text-[#163300] font-black flex items-center justify-center">
-              S
+            <div className="w-10 h-10 rounded-xl overflow-hidden bg-black/30 flex items-center justify-center border border-[#9fe870]/30">
+              <BrandLogo size={36} className="rounded-lg" />
             </div>
             <div>
               <p className="font-extrabold text-white text-sm leading-tight">Sigmawealth</p>
-              <p className="text-[10px] text-[#9fe870] font-semibold uppercase tracking-wider">Admin</p>
+              <p className="text-[10px] text-[#9fe870] font-semibold uppercase tracking-wider">Ops console</p>
             </div>
           </div>
         </div>
@@ -1084,36 +1184,88 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <SurfaceCard className="p-4">
-                      <h3 className="font-bold text-sm mb-3">Due / ready to pay</h3>
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <h3 className="font-bold text-sm">Due / ready to pay</h3>
+                        {payoutsData.payoutMode === "manual" && (
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              disabled={batchPaying || selectedPayoutIds.length === 0}
+                              onClick={() => handleBatchManualPay(false)}
+                              className="px-3 py-1.5 rounded-full bg-[#163300] text-[#9fe870] text-[11px] font-bold disabled:opacity-40"
+                            >
+                              Pay selected ({selectedPayoutIds.length})
+                            </button>
+                            <button
+                              type="button"
+                              disabled={batchPaying || !(payoutsData.dueToday?.length > 0)}
+                              onClick={() => handleBatchManualPay(true)}
+                              className="px-3 py-1.5 rounded-full bg-[#9fe870] text-[#163300] text-[11px] font-bold disabled:opacity-40"
+                            >
+                              Mass pay all due
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-[#163300]/45 mb-3">
+                        Mid-cycle = 50% of deposit · Month-end = remaining 50% + interest · Local banks (Opay, First Bank, etc.)
+                      </p>
                       {(payoutsData.dueToday || []).length === 0 ? (
                         <p className="text-sm text-[#163300]/45 py-6 text-center">Nothing due today.</p>
                       ) : (
                         <div className="space-y-2 max-h-80 overflow-y-auto">
-                          {payoutsData.dueToday.map((item: any) => (
-                            <div
-                              key={`${item.userId}-${item.nextPaymentDate}`}
-                              className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#edefeb]"
-                            >
-                              <div className="min-w-0">
-                                <p className="font-semibold text-sm truncate">
-                                  {item.investorName || item.investorEmail}
-                                </p>
-                                <p className="text-xs text-[#163300]/50">{formatNaira(item.amount)}</p>
+                          {payoutsData.dueToday.map((item: any) => {
+                            const checked = selectedPayoutIds.includes(item.userId)
+                            return (
+                              <div
+                                key={`${item.userId}-${item.nextPaymentDate}`}
+                                className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#edefeb]"
+                              >
+                                <div className="flex items-start gap-2 min-w-0">
+                                  {payoutsData.payoutMode === "manual" && (
+                                    <input
+                                      type="checkbox"
+                                      className="mt-1"
+                                      checked={checked}
+                                      onChange={(e) => {
+                                        setSelectedPayoutIds((prev) =>
+                                          e.target.checked
+                                            ? [...prev, item.userId]
+                                            : prev.filter((id) => id !== item.userId)
+                                        )
+                                      }}
+                                    />
+                                  )}
+                                  <div className="min-w-0">
+                                    <p className="font-semibold text-sm truncate">
+                                      {item.investorName || item.investorEmail}
+                                    </p>
+                                    <p className="text-xs text-[#163300]/50">
+                                      {formatNaira(item.amount)}
+                                      {item.payoutLabel ? ` · ${item.payoutLabel}` : ""}
+                                    </p>
+                                    <p className="text-[10px] text-[#163300]/40 mt-0.5">
+                                      {item.hasBeneficiary
+                                        ? item.bankName || "Bank on file"
+                                        : "⚠ Missing bank details"}
+                                    </p>
+                                  </div>
+                                </div>
+                                {payoutsData.payoutMode === "manual" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setManualPayTarget(item)
+                                      setManualPayReferenceNote("")
+                                    }}
+                                    className="shrink-0 px-3 py-1.5 rounded-full bg-[#163300] text-[#9fe870] text-xs font-bold"
+                                  >
+                                    Mark paid
+                                  </button>
+                                )}
                               </div>
-                              {payoutsData.payoutMode === "manual" && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setManualPayTarget(item)
-                                    setManualPayReferenceNote("")
-                                  }}
-                                  className="shrink-0 px-3 py-1.5 rounded-full bg-[#163300] text-[#9fe870] text-xs font-bold"
-                                >
-                                  Mark paid
-                                </button>
-                              )}
-                            </div>
-                          ))}
+                            )
+                          })}
                         </div>
                       )}
                     </SurfaceCard>
@@ -1324,6 +1476,219 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
                 </div>
               )}
 
+              {activeTab === "support" && (
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 min-h-[520px]">
+                  <SurfaceCard className="lg:col-span-2 overflow-hidden flex flex-col">
+                    <div className="px-4 py-3 border-b border-[#163300]/8 flex items-center justify-between">
+                      <div>
+                        <h3 className="font-bold text-sm flex items-center gap-2">
+                          <MessageSquare className="w-4 h-4" /> Live support inbox
+                        </h3>
+                        <p className="text-[11px] text-[#163300]/45">
+                          {supportPendingCount} pending · updates live
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => refreshSupportInbox()}
+                        className="p-2 rounded-lg hover:bg-[#edefeb]"
+                        aria-label="Refresh inbox"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto max-h-[480px] divide-y divide-[#163300]/8">
+                      {supportConversations.length === 0 ? (
+                        <p className="p-8 text-center text-sm text-[#163300]/45">
+                          No visitor chats yet. Messages from the website chat appear here instantly.
+                        </p>
+                      ) : (
+                        supportConversations.map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={async () => {
+                              setSelectedSupportId(c.id)
+                              try {
+                                const data = await fetchSupportConversation(c.id, "admin")
+                                setSupportMessages(data.messages || [])
+                                setVisitorTyping(Boolean(data.typing && data.typing.role === "user"))
+                                await refreshSupportInbox()
+                              } catch {
+                                showToast("Could not open conversation")
+                              }
+                            }}
+                            className={`w-full text-left px-4 py-3 hover:bg-[#edefeb]/80 transition ${
+                              selectedSupportId === c.id ? "bg-[#edefeb]" : ""
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-sm font-bold truncate">{c.visitor_name || "Guest"}</p>
+                                <p className="text-xs text-[#163300]/50 truncate">
+                                  {c.last_message_preview || "No messages"}
+                                </p>
+                              </div>
+                              <div className="shrink-0 text-right">
+                                {(c.unread_admin || 0) > 0 && (
+                                  <span className="inline-flex min-w-[1.25rem] h-5 px-1.5 items-center justify-center rounded-full bg-[#163300] text-[#9fe870] text-[10px] font-bold">
+                                    {c.unread_admin}
+                                  </span>
+                                )}
+                                <p className="text-[10px] uppercase font-bold text-[#163300]/40 mt-1">
+                                  {c.status}
+                                </p>
+                              </div>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </SurfaceCard>
+
+                  <SurfaceCard className="lg:col-span-3 overflow-hidden flex flex-col min-h-[480px]">
+                    {!selectedSupportId ? (
+                      <div className="flex-1 flex items-center justify-center p-8 text-center text-sm text-[#163300]/45">
+                        Select a conversation to reply in real time.
+                      </div>
+                    ) : (
+                      <>
+                        <div className="px-4 py-3 border-b border-[#163300]/8 flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-bold text-sm truncate">
+                              {supportConversations.find((c) => c.id === selectedSupportId)?.visitor_name ||
+                                "Visitor"}
+                            </p>
+                            <p className="text-[11px] text-[#163300]/45">
+                              {visitorTyping ? "Visitor is typing…" : "Live conversation"}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  await updateSupportConversationStatus(selectedSupportId, "resolved")
+                                  showToast("Conversation marked resolved")
+                                  await refreshSupportInbox()
+                                } catch {
+                                  showToast("Could not update status")
+                                }
+                              }}
+                              className="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-[#edefeb] hover:bg-[#dfe6e1]"
+                            >
+                              Resolve
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#f7faf7] max-h-[360px]">
+                          {supportMessages.map((m) => (
+                            <div
+                              key={m.id}
+                              className={`flex ${m.sender === "admin" ? "justify-end" : "justify-start"}`}
+                            >
+                              <div
+                                className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm ${
+                                  m.sender === "admin"
+                                    ? "bg-[#163300] text-white rounded-br-sm"
+                                    : "bg-white border border-[#163300]/10 text-[#163300] rounded-bl-sm"
+                                }`}
+                              >
+                                <p>{m.content}</p>
+                                <div className="flex items-center gap-2 mt-1 opacity-70 text-[10px]">
+                                  <span>
+                                    {new Date(m.created_at).toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
+                                  {m.sender === "user" && m.status === "pending" && (
+                                    <span className="font-semibold text-amber-500">Pending</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {visitorTyping && (
+                            <div className="flex justify-start">
+                              <div className="bg-white border border-[#163300]/10 rounded-2xl px-3 py-2 flex gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#163300] animate-bounce" />
+                                <span
+                                  className="w-1.5 h-1.5 rounded-full bg-[#163300] animate-bounce"
+                                  style={{ animationDelay: "150ms" }}
+                                />
+                                <span
+                                  className="w-1.5 h-1.5 rounded-full bg-[#163300] animate-bounce"
+                                  style={{ animationDelay: "300ms" }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <form
+                          className="p-3 border-t border-[#163300]/8 flex gap-2"
+                          onSubmit={async (e) => {
+                            e.preventDefault()
+                            if (!selectedSupportId || !supportReply.trim() || supportSending) return
+                            setSupportSending(true)
+                            try {
+                              await sendSupportMessage(selectedSupportId, {
+                                content: supportReply.trim(),
+                                sender: "admin",
+                                senderName: user?.name || "Sigma Wealth Support",
+                              })
+                              setSupportReply("")
+                              await setSupportTyping(selectedSupportId, {
+                                role: "admin",
+                                typing: false,
+                                name: user?.name || "Support",
+                              })
+                              const data = await fetchSupportConversation(selectedSupportId, "admin")
+                              setSupportMessages(data.messages || [])
+                              await refreshSupportInbox()
+                            } catch (err: any) {
+                              showToast(err.message || "Failed to send reply")
+                            } finally {
+                              setSupportSending(false)
+                            }
+                          }}
+                        >
+                          <input
+                            value={supportReply}
+                            onChange={(e) => {
+                              setSupportReply(e.target.value)
+                              if (!selectedSupportId) return
+                              setSupportTyping(selectedSupportId, {
+                                role: "admin",
+                                typing: true,
+                                name: user?.name || "Support",
+                              })
+                              if (supportTypingTimer.current) clearTimeout(supportTypingTimer.current)
+                              supportTypingTimer.current = setTimeout(() => {
+                                if (selectedSupportId) {
+                                  setSupportTyping(selectedSupportId, {
+                                    role: "admin",
+                                    typing: false,
+                                    name: user?.name || "Support",
+                                  })
+                                }
+                              }, 1200)
+                            }}
+                            placeholder="Reply to visitor…"
+                            className="flex-1 h-11 px-3 rounded-xl bg-[#edefeb] border border-[#163300]/8 text-sm outline-none focus:ring-2 focus:ring-[#163300]/20"
+                          />
+                          <PressableButton type="submit" variant="lime" disabled={supportSending || !supportReply.trim()}>
+                            {supportSending ? "…" : "Send"}
+                          </PressableButton>
+                        </form>
+                      </>
+                    )}
+                  </SurfaceCard>
+                </div>
+              )}
+
               {activeTab === "settings" && (
                 <div className="space-y-4">
                   <SurfaceCard className="p-5 space-y-3">
@@ -1467,6 +1832,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
             <p className="text-sm">
               {manualPayTarget.investorName || manualPayTarget.investorEmail} ·{" "}
               <strong>{formatNaira(manualPayTarget.amount)}</strong>
+              {manualPayTarget.payoutLabel ? ` · ${manualPayTarget.payoutLabel}` : ""}
+            </p>
+            <p className="text-xs text-[#163300]/45">
+              Local bank payout (Opay / First Bank / etc). Missing details notify the investor.
             </p>
             <input
               value={manualPayReferenceNote}

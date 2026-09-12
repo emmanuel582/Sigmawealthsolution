@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react"
 import { ChevronDown, Menu, X, Wallet, Calendar, Shield, TrendingUp } from "lucide-react"
 import Link from "next/link"
 import { useDropdown } from "../contexts/DropdownContext"
+import { BrandLogo } from "@/components/BrandLogo"
 
 export function Navbar() {
   const { isFeaturesOpen, setIsFeaturesOpen } = useDropdown()
@@ -13,7 +14,18 @@ export function Navbar() {
   const [lastScrollY, setLastScrollY] = useState(0)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
+  const [chatOpen, setChatOpen] = useState(false)
   const navRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const onChat = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      setChatOpen(Boolean(detail?.open))
+      if (detail?.open) setIsMobileMenuOpen(false)
+    }
+    window.addEventListener("sigma-chat-open", onChat as EventListener)
+    return () => window.removeEventListener("sigma-chat-open", onChat as EventListener)
+  }, [])
 
   const features = [
     {
@@ -97,7 +109,11 @@ export function Navbar() {
       <nav
         ref={navRef}
         className={`fixed top-0 left-0 right-0 z-[10000] px-3 pt-3 sm:px-4 sm:pt-4 transition-all duration-300 ${
-          isVisible ? "translate-y-0 opacity-100" : "-translate-y-[110%] opacity-0 pointer-events-none"
+          chatOpen
+            ? "-translate-y-[140%] opacity-0 pointer-events-none"
+            : isVisible
+              ? "translate-y-0 opacity-100"
+              : "-translate-y-[110%] opacity-0 pointer-events-none"
         }`}
       >
         <div
@@ -110,9 +126,7 @@ export function Navbar() {
           <div className="px-4 sm:px-6 md:px-8 flex justify-between items-center min-h-[56px] sm:min-h-[60px] py-2.5 sm:py-3">
             <div className="flex items-center gap-4 md:gap-6 lg:gap-8 min-w-0">
               <Link href="/" className="flex items-center gap-2 sm:gap-3 shrink-0" onClick={closeMobile}>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-[3px] border-[#004324] flex items-center justify-center">
-                  <span className="text-xl sm:text-2xl font-black text-[#004324]">S</span>
-                </div>
+                <BrandLogo size={44} priority className="rounded-xl w-10 h-10 sm:w-12 sm:h-12" />
                 <div className="flex flex-col items-start min-w-0">
                   <h1 className="text-[#004324] text-sm sm:text-lg md:text-xl font-black leading-tight tracking-wide truncate max-w-[140px] sm:max-w-none">
                     Sigmawealth

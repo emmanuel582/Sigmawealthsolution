@@ -30,11 +30,13 @@ const nextConfig = {
   async headers() {
     const isProd = process.env.NODE_ENV === 'production'
     const securityHeaders = [
-      { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+      { key: 'X-Frame-Options', value: 'DENY' },
       { key: 'X-Content-Type-Options', value: 'nosniff' },
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-      { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+      { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
       { key: 'X-DNS-Prefetch-Control', value: 'on' },
+      { key: 'X-XSS-Protection', value: '0' },
+      { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
       {
         key: 'Content-Security-Policy',
         value: [
@@ -43,11 +45,13 @@ const nextConfig = {
           "style-src 'self' 'unsafe-inline'",
           "img-src 'self' data: blob: https:",
           "font-src 'self' data:",
-          "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com https://oauth2.googleapis.com http://127.0.0.1:4000 http://localhost:4000 https://*.onrender.com",
+          "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com https://oauth2.googleapis.com http://127.0.0.1:4000 http://localhost:4000 https://*.onrender.com https://*.vercel.app",
           "frame-src 'self' https://accounts.google.com https://*.supabase.co",
+          "frame-ancestors 'none'",
           "base-uri 'self'",
           "form-action 'self'",
           "object-src 'none'",
+          ...(isProd ? ["upgrade-insecure-requests"] : []),
         ].join('; '),
       },
     ]
@@ -74,6 +78,7 @@ const nextConfig = {
       { source: '/api/opay/:path*', destination: `${api}/api/opay/:path*` },
       { source: '/api/admin/:path*', destination: `${api}/api/admin/:path*` },
       { source: '/api/payouts/:path*', destination: `${api}/api/payouts/:path*` },
+      { source: '/api/support/:path*', destination: `${api}/api/support/:path*` },
     ]
   },
 }

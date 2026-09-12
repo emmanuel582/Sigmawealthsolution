@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { Instagram, Linkedin, Facebook, Twitter } from "lucide-react"
+import { BrandLogo } from "@/components/BrandLogo"
 
 export function Footer() {
   return (
@@ -12,9 +13,7 @@ export function Footer() {
           {/* Brand Column */}
           <div className="md:w-1/3 lg:w-1/4 mb-10 md:mb-0">
             <Link href="/" className="flex items-center gap-2.5 mb-4 md:mb-6" prefetch={false}>
-              <div className="w-10 h-10 rounded-full border-2 border-[#004324] bg-[#004324] flex items-center justify-center shrink-0">
-                <span className="text-lg font-black text-white">S</span>
-              </div>
+              <BrandLogo size={40} className="rounded-xl shrink-0" />
               <span className="text-lg sm:text-xl font-bold tracking-tight md:text-gray-900 text-white">sigmawealth</span>
             </Link>
             
@@ -78,20 +77,23 @@ export function Footer() {
               
               {/* Desktop Only: Addresses */}
               <div className="hidden md:block">
-                <h3 className="text-sm font-semibold text-gray-900 mb-4 md:mb-6">Lagos Address</h3>
+                <h3 className="text-sm font-semibold text-gray-900 mb-4 md:mb-6">Contact</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">
-                  Sigmawealth Technologies Limited<br/><br/>
-                  Office 10 Ikeja,<br/>
-                  Modern Market<br/>
+                  Adetipe Adesanmi<br/><br/>
+                  Harmony Gold estate olonde<br/>
                   Lagos, Nigeria.<br/><br/>
-                  +234 812 384 3076
+                  <a href="tel:+358465560087" className="hover:text-[#004324] transition-colors">+358 46 5560087</a>
                 </p>
               </div>
               <div className="hidden md:block">
-                <h3 className="text-sm font-semibold text-gray-900 mb-4 md:mb-6">Ogbomosho Office</h3>
+                <h3 className="text-sm font-semibold text-gray-900 mb-4 md:mb-6">Support</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">
-                  SIGMAWEALTH INC.<br/>
-                  Lautech Nigeria
+                  Email:{' '}
+                  <a href="mailto:hello@sigmawealthsolution.com" className="hover:text-[#004324] transition-colors">
+                    hello@sigmawealthsolution.com
+                  </a>
+                  <br/><br/>
+                  Live chat available on the website.
                 </p>
               </div>
 
@@ -151,7 +153,7 @@ export function Footer() {
             <Link href="#" className="text-white/55 hover:text-white transition-colors" aria-label="LinkedIn" prefetch={false}><Linkedin className="h-5 w-5" /></Link>
           </div>
           <p className="text-sm text-white/55 md:hidden leading-relaxed max-w-md">
-            Harmony Gold estate olonde, Lagos, Nigeria.
+            Adetipe Adesanmi · +358 46 5560087 · Harmony Gold estate olonde, Lagos, Nigeria.
           </p>
 
           {/* Desktop Only: Legal Links */}

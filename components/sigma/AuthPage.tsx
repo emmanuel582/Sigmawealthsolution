@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppIcon } from '@/components/sigma/ui/AppIcon';
 import { PressableButton } from '@/components/sigma/ui/Pressable';
+import { BrandLogo } from '@/components/BrandLogo';
 import { supabase, isSupabaseConfigured } from '@/lib/sigma/supabaseClient';
 
 interface AuthPageProps {
@@ -13,18 +14,6 @@ interface AuthPageProps {
 
 const pillInput =
   'w-full h-[48px] pl-11 pr-11 rounded-full bg-white text-[#163300] text-sm placeholder:text-[#163300]/40 border border-[#163300]/8 shadow-[0_2px_12px_rgba(22,51,0,0.04)] focus:outline-none focus:ring-2 focus:ring-[#9fe870] focus:border-[#9fe870]/50 transition-all duration-200';
-
-/* ── Sigma Σ SVG icon component ── */
-function SigmaIcon({ className = '' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 512 512" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M 160 128 L 352 128 L 352 172 L 230 172 L 290 256 L 230 340 L 352 340 L 352 384 L 160 384 L 160 350 L 268 256 L 160 162 Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
 
 /* ── Right Hero Panel ── */
 function AuthHeroPanel() {
@@ -503,8 +492,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
         >
           {/* Logo */}
           <div className="flex items-center gap-3 mb-5 lg:mb-6">
-            <div className="w-11 h-11 rounded-2xl bg-[#163300] flex items-center justify-center text-[#9fe870] shadow-lg shrink-0">
-              <SigmaIcon className="w-6 h-6" />
+            <div className="w-11 h-11 rounded-2xl overflow-hidden bg-[#163300] flex items-center justify-center shadow-lg shrink-0 border border-[#9fe870]/20">
+              <BrandLogo size={40} className="rounded-xl" />
             </div>
             <div>
               <p className="font-bold text-[#163300] text-lg leading-tight">Sigma Wealth</p>

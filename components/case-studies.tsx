@@ -16,8 +16,8 @@ export function CaseStudies() {
     },
     {
       company: "Chioma E.",
-      quote: "The auto-debit feature through Paystack makes everything seamless. I don't even have to think about it — my investment grows on its own every month.",
-      description: "Recurring Investor — Auto-Debit via Paystack",
+      quote: "The monthly auto-debit feature makes everything seamless. I don't even have to think about it — my investment grows on its own every month.",
+      description: "Recurring Investor — Monthly Auto-Debit",
       image: "/images/case-study-2.jpeg",
       link: "Read full story"
     },
@@ -25,28 +25,28 @@ export function CaseStudies() {
       company: "Emeka O.",
       quote: "I was skeptical at first, but receiving 50% of my returns within two weeks proved this platform is legit. I've now invested over $5,000.",
       description: "Scaled Investor — Growing Portfolio",
-      image: "/images/content-example-1.jpeg",
+      image: "/images/review-emeka.jpeg",
       link: "Read full story"
     },
     {
       company: "Aisha M.",
       quote: "The investor dashboard shows everything clearly — my total investment, next payout date, and transaction history. It's professional and easy to navigate.",
       description: "Dashboard User — Full Transparency",
-      image: "/images/content-example-2.jpeg",
+      image: "/images/review-aisha.jpeg",
       link: "Read full story"
     },
     {
       company: "David K.",
       quote: "Paying through Opay was super easy. Within minutes my investment was confirmed. Now I get consistent monthly returns without any stress.",
       description: "Opay Investor — Quick Funding",
-      image: "/images/content-example-3.jpeg",
+      image: "/images/review-david.jpeg",
       link: "Read full story"
     },
     {
       company: "Funke B.",
       quote: "I recommend SigmawealthSolution to all my friends. The split payout system — 50% early, 50% at month end — gives me cash flow I can actually plan with.",
       description: "Referral Advocate — Split Payout Benefits",
-      image: "/images/banner_rt_img.webp",
+      image: "/images/review-funke.jpeg",
       link: "Read full story"
     }
   ]
@@ -127,7 +127,7 @@ export function CaseStudies() {
                   alt={caseStudies[activeTab].company}
                   width={400}
                   height={300}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover object-top"
                 />
               </div>
             </div>

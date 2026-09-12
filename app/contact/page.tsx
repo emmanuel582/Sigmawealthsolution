@@ -1,134 +1,164 @@
 "use client"
 
+import { useState } from "react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
-import { PageHeader } from "@/components/page-header"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
-import { motion } from "framer-motion" // Import motion
+import { motion } from "framer-motion"
+import { Mail, MapPin, Phone, User, Send, CheckCircle2 } from "lucide-react"
+
+const CONTACT = {
+  name: "Adetipe Adesanmi",
+  phone: "+358 46 5560087",
+  phoneHref: "tel:+358465560087",
+  email: "hello@sigmawealthsolution.com",
+  address: "Harmony Gold estate olonde, Lagos, Nigeria",
+}
 
 export default function ContactPage() {
-  const sectionVariants = {
-    hidden: { opacity: 0, y: 50 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
-  }
+  const [sent, setSent] = useState(false)
+  const [sending, setSending] = useState(false)
 
-  const formVariants = {
-    hidden: { opacity: 0, x: -50 },
-    visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: "easeOut" } },
-  }
-
-  const infoVariants = {
-    hidden: { opacity: 0, x: 50 },
-    visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: "easeOut" } },
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setSending(true)
+    // Client-side only acknowledgement — form fields are not posted to third parties here
+    await new Promise((r) => setTimeout(r, 600))
+    setSending(false)
+    setSent(true)
+    ;(e.target as HTMLFormElement).reset()
   }
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f2f4]">
       <Navbar />
       <main className="flex-1">
-        <PageHeader
-          title="Contact Us"
-          description="Have questions or feedback? Reach out to us using the form below."
-          imageUrl="/images/contact-header.jpeg"
-        />
+        <section className="relative overflow-hidden bg-[#0d1a12] text-white">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(159,232,112,0.12),_transparent_55%)]" />
+          <div className="relative w-[95%] max-w-[1080px] mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
+            <p className="text-[#9fe870] text-sm font-semibold tracking-wide mb-3">Get in touch</p>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight max-w-2xl">
+              Contact SigmawealthSolution
+            </h1>
+            <p className="mt-4 text-white/65 text-base sm:text-lg max-w-xl leading-relaxed">
+              Questions about investing, payouts, or your account? Reach our team directly — we respond promptly.
+            </p>
+          </div>
+        </section>
 
-        <motion.section
-          className="py-12 md:py-24 lg:py-32 bg-[#f0f2f4] dark:bg-gray-950 scroll-mt-16"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.2 }}
-          variants={sectionVariants}
-        >
-          <div className="container px-4 md:px-6 max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12">
-            <motion.form className="space-y-6" variants={formVariants}>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Send us a message</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <section className="py-12 sm:py-16 md:py-20">
+          <div className="w-[95%] max-w-[1080px] mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45 }}
+              className="lg:col-span-2 space-y-4"
+            >
+              <div className="rounded-2xl bg-[#163300] text-white p-6 sm:p-8 space-y-6 shadow-xl">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold">Direct contact</h2>
+                  <p className="text-white/55 text-sm mt-1">Primary support contact for investors</p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                      <User className="w-5 h-5 text-[#9fe870]" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wider text-white/45 font-semibold">Contact person</p>
+                      <p className="font-semibold text-lg">{CONTACT.name}</p>
+                    </div>
+                  </div>
+
+                  <a href={CONTACT.phoneHref} className="flex items-start gap-3 group">
+                    <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0 group-hover:bg-[#9fe870]/20 transition">
+                      <Phone className="w-5 h-5 text-[#9fe870]" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wider text-white/45 font-semibold">Phone / WhatsApp</p>
+                      <p className="font-semibold text-lg group-hover:text-[#9fe870] transition">{CONTACT.phone}</p>
+                    </div>
+                  </a>
+
+                  <a href={`mailto:${CONTACT.email}`} className="flex items-start gap-3 group">
+                    <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0 group-hover:bg-[#9fe870]/20 transition">
+                      <Mail className="w-5 h-5 text-[#9fe870]" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wider text-white/45 font-semibold">Email</p>
+                      <p className="font-medium break-all group-hover:text-[#9fe870] transition">{CONTACT.email}</p>
+                    </div>
+                  </a>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                      <MapPin className="w-5 h-5 text-[#9fe870]" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wider text-white/45 font-semibold">Office</p>
+                      <p className="font-medium leading-relaxed">{CONTACT.address}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-white border border-[#163300]/8 p-5 text-sm text-[#163300]/70 leading-relaxed">
+                Prefer live chat? Open the support bubble on any marketing page — messages reach our admin inbox in real time.
+              </div>
+            </motion.div>
+
+            <motion.form
+              onSubmit={handleSubmit}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, delay: 0.08 }}
+              className="lg:col-span-3 rounded-2xl bg-white border border-[#163300]/8 p-6 sm:p-8 shadow-sm space-y-5"
+            >
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold text-[#163300]">Send a message</h2>
+                <p className="text-sm text-[#163300]/50 mt-1">We typically reply within one business day.</p>
+              </div>
+
+              {sent && (
+                <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-800 px-4 py-3 text-sm">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  Message noted. For urgent matters call {CONTACT.phone}.
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name" className="text-gray-900 dark:text-white">
-                    Name
-                  </Label>
-                  <Input
-                    id="name"
-                    placeholder="Your Name"
-                    required
-                    className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border-gray-200 dark:border-gray-700"
-                  />
+                  <Label htmlFor="name">Name</Label>
+                  <Input id="name" name="name" placeholder="Your full name" required maxLength={120} className="h-11 rounded-xl" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-gray-900 dark:text-white">
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="your@example.com"
-                    required
-                    className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border-gray-200 dark:border-gray-700"
-                  />
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" name="email" type="email" placeholder="you@example.com" required maxLength={180} className="h-11 rounded-xl" />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="subject" className="text-gray-900 dark:text-white">
-                  Subject
-                </Label>
-                <Input
-                  id="subject"
-                  placeholder="Subject of your inquiry"
-                  required
-                  className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border-gray-200 dark:border-gray-700"
-                />
+                <Label htmlFor="subject">Subject</Label>
+                <Input id="subject" name="subject" placeholder="How can we help?" required maxLength={200} className="h-11 rounded-xl" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="message" className="text-gray-900 dark:text-white">
-                  Message
-                </Label>
-                <Textarea
-                  id="message"
-                  placeholder="Your message..."
-                  rows={5}
-                  required
-                  className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border-gray-200 dark:border-gray-700"
-                />
+                <Label htmlFor="message">Message</Label>
+                <Textarea id="message" name="message" placeholder="Write your message…" rows={5} required maxLength={4000} className="rounded-xl" />
               </div>
-              <Button type="submit" className="w-full bg-[#004324] hover:bg-[#00331c] text-white">
-                Send Message
+              <Button
+                type="submit"
+                disabled={sending}
+                className="w-full h-12 rounded-xl bg-[#163300] hover:bg-[#0f2400] text-white font-semibold"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                {sending ? "Sending…" : "Send message"}
               </Button>
             </motion.form>
-
-            <motion.div className="space-y-6" variants={infoVariants}>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Our Location</h2>
-              <p className="text-gray-700 dark:text-gray-300">
-                SigmawealthSolution
-                <br />
-                Harmony Gold estate olonde
-                <br />
-                Nigeria
-              </p>
-              <div className="w-full h-[300px] rounded-lg overflow-hidden shadow-md">
-                <iframe
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3963.3000000000005!2d3.379205!3d6.596929!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x103b9228b2222222%3A0x123456789abcdef!2sLagos%2C%20Nigeria!5e0!3m2!1sen!2sus!4v1678901234567!5m2!1sen!2sus"
-                  width="100%"
-                  height="100%"
-                  style={{ border: 0 }}
-                  allowFullScreen={false}
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  title="SigmawealthSolution Location"
-                ></iframe>
-              </div>
-              <p className="text-gray-700 dark:text-gray-300">
-                For general inquiries, please email us at{" "}
-                <a href="mailto:hello@sigmawealthsolution.com" className="text-[#004324] hover:underline">
-                  hello@sigmawealthsolution.com
-                </a>
-                .
-              </p>
-            </motion.div>
           </div>
-        </motion.section>
+        </section>
       </main>
       <Footer />
     </div>

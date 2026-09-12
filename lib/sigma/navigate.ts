@@ -1,6 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import { ADMIN_APP_PATH } from "@/lib/sigma/adminPath"
 
 const VIEW_ROUTES: Record<string, string> = {
   landing: "/",
@@ -9,7 +10,7 @@ const VIEW_ROUTES: Record<string, string> = {
   "auth-signup": "/auth/signup",
   "auth-forgot": "/auth/login?mode=forgot",
   dashboard: "/dashboard",
-  admin: "/admin",
+  admin: ADMIN_APP_PATH,
 }
 
 /** Maps legacy apex onNavigate(view) calls to Next.js routes */

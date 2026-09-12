@@ -10,8 +10,17 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'SigmawealthSolution | Smart Investing',
   description:
-    'Invest from $100 to unlimited with SigmawealthSolution. Full monthly returns — 50% in two weeks, 50% at month end.',
+    'Invest from $100 to unlimited with SigmawealthSolution. Full monthly returns — 50% in two weeks, remaining at month end with interest.',
   generator: 'SigmawealthSolution',
+  icons: {
+    icon: [{ url: '/images/logo.png', type: 'image/png' }],
+    apple: [{ url: '/images/logo.png' }],
+    shortcut: ['/images/logo.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 export default function RootLayout({
