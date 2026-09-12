@@ -10,7 +10,7 @@ export default function HiddenOpsConsolePage() {
   const { isLoading } = useAuth()
 
   if (isLoading) {
-    return <BrandLoader label="Verifying secure access…" />
+    return <BrandLoader />
   }
 
   return <AdminPortal onNavigate={onNavigate} />

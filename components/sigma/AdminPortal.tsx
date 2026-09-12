@@ -611,7 +611,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
   ]
 
   if (isVerifying) {
-    return <BrandLoader label="Verifying secure ops access…" />
+    return <BrandLoader />
   }
 
   if (!isAdminVerified) {

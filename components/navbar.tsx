@@ -125,13 +125,17 @@ export function Navbar() {
         >
           <div className="px-4 sm:px-6 md:px-8 flex justify-between items-center min-h-[56px] sm:min-h-[60px] py-2.5 sm:py-3">
             <div className="flex items-center gap-4 md:gap-6 lg:gap-8 min-w-0">
-              <Link href="/" className="flex items-center gap-2 sm:gap-3 shrink-0" onClick={closeMobile}>
-                <BrandLogo size={44} priority className="rounded-xl w-10 h-10 sm:w-12 sm:h-12" />
+              <Link href="/" className="flex items-center gap-2.5 sm:gap-3.5 shrink-0" onClick={closeMobile}>
+                <BrandLogo
+                  size={56}
+                  priority
+                  className="rounded-xl w-12 h-12 sm:w-14 sm:h-14 md:w-[3.75rem] md:h-[3.75rem]"
+                />
                 <div className="flex flex-col items-start min-w-0">
-                  <h1 className="text-[#004324] text-sm sm:text-lg md:text-xl font-black leading-tight tracking-wide truncate max-w-[140px] sm:max-w-none">
+                  <h1 className="text-[#004324] text-base sm:text-xl md:text-2xl font-black leading-tight tracking-wide truncate max-w-[160px] sm:max-w-none">
                     Sigmawealth
                   </h1>
-                  <span className="text-[#004324] text-[9px] sm:text-[10px] italic tracking-widest hidden xs:block sm:block">
+                  <span className="text-[#004324] text-[10px] sm:text-xs italic tracking-widest hidden xs:block sm:block">
                     Solution
                   </span>
                 </div>

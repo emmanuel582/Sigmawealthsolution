@@ -11,7 +11,7 @@ export default function DashboardPage() {
   const { user, isLoading } = useAuth()
 
   if (isLoading) {
-    return <BrandLoader label="Opening your investor dashboard…" />
+    return <BrandLoader />
   }
 
   if (!user) {

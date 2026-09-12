@@ -33,9 +33,7 @@ export default function HomePage() {
   }
 
   if (isLoading || user) {
-    return (
-      <BrandLoader label={user ? "Opening your secure workspace…" : "Loading Sigma Wealth…"} />
-    )
+    return <BrandLoader />
   }
 
   return (
