@@ -111,6 +111,16 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
   const [syncingFlw, setSyncingFlw] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
 
+  const clearActionFeedback = () => {
+    setActionSuccess(null);
+    setActionError(null);
+  };
+
+  const handleTabChange = (tab: InvestorTab) => {
+    if (tab === 'notifications') clearActionFeedback();
+    setActiveTab(tab);
+  };
+
   const loadData = async () => {
     if (!user) return;
     setLoading(true);
@@ -511,7 +521,10 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
             
             <div className="relative">
               <motion.button
-                onClick={() => setShowNotificationPopover(!showNotificationPopover)}
+                onClick={() => {
+                  clearActionFeedback();
+                  setShowNotificationPopover(!showNotificationPopover);
+                }}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.92 }}
                 className="relative p-2.5 rounded-xl bg-white/10 hover:bg-white/15 transition press-ring"
@@ -601,34 +614,6 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
           <IconCircleButton icon="plus" label="Fund" onClick={() => setShowPaymentModal(true)} />
           <IconCircleButton icon="gift" label="Invite" onClick={() => setShowInviteModal(true)} />
         </div>
-        
-        {/* Action feedback toasts */}
-        <AnimatePresence>
-          {actionSuccess && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="p-3.5 rounded-xl bg-[#9fe870]/30 border border-[#9fe870] text-[#163300] text-xs flex items-center justify-between"
-            >
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>{actionSuccess}</span>
-              </div>
-              <button onClick={() => setActionSuccess(null)}><X className="w-4 h-4" /></button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {actionError && (
-          <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              <span>{actionError}</span>
-            </div>
-            <button onClick={() => setActionError(null)}><X className="w-4 h-4" /></button>
-          </div>
-        )}
 
         {/* HOME TAB */}
         {activeTab === 'home' && (
@@ -1029,9 +1014,49 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
 
       </div>
 
+      {/* Action toasts — anchored under the header bell (right side) */}
+      <div className="pointer-events-none fixed top-[4.5rem] right-3 sm:right-6 z-[60] w-[min(92vw,22rem)] flex flex-col gap-2">
+        <AnimatePresence>
+          {actionSuccess && (
+            <motion.div
+              initial={{ opacity: 0, x: 24, y: -6 }}
+              animate={{ opacity: 1, x: 0, y: 0 }}
+              exit={{ opacity: 0, x: 16, y: -4 }}
+              className="pointer-events-auto p-3.5 rounded-xl bg-[#9fe870]/95 border border-[#9fe870] text-[#163300] text-xs shadow-[0_12px_32px_rgba(22,51,0,0.18)] flex items-start justify-between gap-3"
+            >
+              <div className="flex items-start gap-2 min-w-0">
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="leading-snug">{actionSuccess}</span>
+              </div>
+              <button type="button" onClick={clearActionFeedback} className="shrink-0 p-0.5 rounded hover:bg-black/5" aria-label="Dismiss">
+                <X className="w-4 h-4" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {actionError && (
+            <motion.div
+              initial={{ opacity: 0, x: 24, y: -6 }}
+              animate={{ opacity: 1, x: 0, y: 0 }}
+              exit={{ opacity: 0, x: 16, y: -4 }}
+              className="pointer-events-auto p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs shadow-[0_12px_32px_rgba(22,51,0,0.12)] flex items-start justify-between gap-3"
+            >
+              <div className="flex items-start gap-2 min-w-0">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="leading-snug">{actionError}</span>
+              </div>
+              <button type="button" onClick={clearActionFeedback} className="shrink-0 p-0.5 rounded hover:bg-black/5" aria-label="Dismiss">
+                <X className="w-4 h-4" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
       <InvestorBottomNav
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         notificationCount={unreadNotifCount}
       />
 
