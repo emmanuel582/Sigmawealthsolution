@@ -768,12 +768,37 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsMobileSidebarOpen(false)} />
           <aside className="absolute left-0 top-0 bottom-0 w-[80%] max-w-[280px] bg-[#163300] flex flex-col shadow-2xl">
             <div className="p-4 flex items-center justify-between border-b border-[#9fe870]/15">
-              <span className="text-white font-bold">Admin</span>
+              <div>
+                <span className="text-white font-bold block">Admin console</span>
+                <span className="text-[10px] text-[#9fe870]/70">Sigmawealth ops</span>
+              </div>
               <button type="button" onClick={() => setIsMobileSidebarOpen(false)} className="text-[#9fe870]">
                 <X className="w-5 h-5" />
               </button>
             </div>
             {SidebarNav}
+            <div className="p-4 border-t border-[#9fe870]/15 space-y-2 mt-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileSidebarOpen(false)
+                  onNavigate("dashboard")
+                }}
+                className="w-full text-left text-xs text-[#9fe870]/70 hover:text-white px-2 py-1.5"
+              >
+                Open investor app
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await signOut()
+                  onNavigate("landing")
+                }}
+                className="w-full flex items-center gap-2 text-xs text-[#9fe870]/70 hover:text-white px-2 py-1.5"
+              >
+                <LogOut className="w-3.5 h-3.5" /> Sign out
+              </button>
+            </div>
           </aside>
         </div>
       )}
