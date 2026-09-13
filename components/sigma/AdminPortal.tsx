@@ -742,12 +742,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
         </div>
         {SidebarNav}
         <div className="p-4 border-t border-[#9fe870]/15 space-y-2">
+          <p className="px-2 text-[10px] font-bold uppercase tracking-wider text-[#9fe870]/45">Admin console</p>
           <button
             type="button"
             onClick={() => onNavigate("dashboard")}
             className="w-full text-left text-xs text-[#9fe870]/70 hover:text-white px-2 py-1.5"
           >
-            Investor dashboard
+            Open investor app
           </button>
           <button
             type="button"
