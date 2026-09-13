@@ -33,6 +33,16 @@ function formatMsgTime(iso?: string) {
   }
 }
 
+function getStoredConversationId() {
+  if (typeof window === "undefined") return null
+  return localStorage.getItem("sigma_support_conversation_id")
+}
+
+function setStoredConversationId(id: string) {
+  if (typeof window === "undefined") return
+  localStorage.setItem("sigma_support_conversation_id", id)
+}
+
 function getOrCreateGuestId() {
   if (typeof window === "undefined") return ""
   const key = "sigma_support_guest_id"
@@ -117,15 +127,21 @@ export default function ChatWidget() {
     setConnecting(true)
     try {
       const guestId = getOrCreateGuestId()
+      const storedId = getStoredConversationId()
       const res = await fetch("/api/support/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ guestId, name: "Website Guest" }),
+        body: JSON.stringify({
+          guestId,
+          name: "Website Guest",
+          conversationId: storedId || undefined,
+        }),
       })
       if (!res.ok) throw new Error("Could not start support chat")
       const data = await res.json()
       const id = data.conversation?.id as string
       setConversationId(id)
+      if (id) setStoredConversationId(id)
       const mapped = mapServerMessages(data.messages || [])
       knownIds.current = new Set(mapped.map((m) => m.id))
       setMessages(mapped)

@@ -26,6 +26,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# runtime chat persistence (rebuilt from Supabase / live traffic)
+/data/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
