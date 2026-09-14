@@ -24,7 +24,7 @@ export function FeaturesSection() {
                 Phase 1 — Open your investment
               </h3>
               <p className="text-gray-600 leading-relaxed mb-6">
-                Create your SigmawealthSolution account, choose your amount (from $100 upward), and fund with Paystack debit card, auto-debit, or Opay transfer.
+                Create your SigmawealthSolution account, choose your amount (from ₦100,000 upward), and fund with Flutterwave debit card or monthly auto-debit.
               </p>
               <div className="space-y-2 mb-6">
                 <p className="text-sm font-medium text-[#004324]">How much can I invest?</p>
@@ -51,10 +51,10 @@ export function FeaturesSection() {
           >
             <div className="mb-6">
               <h3 className="text-xl sm:text-2xl font-bold text-black mb-4">
-                Phase 2 — First payout in 2 weeks
+                Phase 2 — Weekly 25% payouts
               </h3>
               <p className="text-gray-600 leading-relaxed mb-6">
-                At the half-month mark, you receive 50% of your return. Track your next payment date and total invested from your investor dashboard.
+                Every week you receive 25% of your deposit. Track your next payment date and total invested from your investor dashboard.
               </p>
               <p className="text-sm font-medium text-[#004324] mb-6">
                 When is my first payout?
@@ -83,13 +83,13 @@ export function FeaturesSection() {
             <div className="flex flex-col lg:flex-row items-start gap-6 sm:gap-8">
               <div className="flex-1">
                 <h3 className="text-xl sm:text-2xl font-bold text-black mb-4">
-                  Phase 3 — Full return by month end
+                  Phase 3 — Week 4 completes your return
                 </h3>
                 <p className="text-gray-600 leading-relaxed mb-6">
-                  At the end of the month you receive the remaining 50% — completing your full return of investment. Then reinvest, adjust auto-debit, or take a one-time deposit.
+                  In week 4 you receive the final 25% plus interest — completing your full return. Then reinvest, adjust auto-debit, or make another deposit.
                 </p>
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-[#004324]">What happens at month end?</p>
+                  <p className="text-sm font-medium text-[#004324]">What happens in week 4?</p>
                   <p className="text-sm font-medium text-[#004324]">Can I reinvest automatically?</p>
                 </div>
               </div>
@@ -119,7 +119,7 @@ export function FeaturesSection() {
                 Auto-debit or one-time pay
               </h3>
               <p className="text-gray-600 leading-relaxed mb-6">
-                Set a monthly auto-investment amount, or pay once whenever you are ready. Your debit card stays secure through Paystack.
+                Set a monthly auto-investment amount, or pay once whenever you are ready. Your debit card stays secure through Flutterwave.
               </p>
               <p className="text-sm font-medium text-[#004324] mb-6">
                 Which payment option is right for me?

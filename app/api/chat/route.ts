@@ -70,10 +70,10 @@ export async function POST(req: NextRequest) {
 
   const knowledge = `
   SigmawealthSolution is an investment platform.
-  - Minimum investment: $100; maximum: unlimited
+  - Minimum investment: ₦100,000 (Naira only); maximum: unlimited
   - Full return of investment within one month
-  - Payouts twice monthly: 50% in the first two weeks, 50% at month end
-  - Payments: Paystack debit card, monthly auto-debit, or Opay transfer
+  - Payouts weekly: 25% of deposit every week for 4 weeks; week 4 also includes interest
+  - Payments: Flutterwave debit card or monthly auto-debit
   - Investor dashboard: total invested, next payment date, card details
   `
 
@@ -91,9 +91,9 @@ export async function POST(req: NextRequest) {
     contact: "The user wants to contact support. Point them to /contact.",
     guide: "The user needs guidance on investing with SigmawealthSolution.",
     faq: "Answer clearly about investments, payouts, and funding options.",
-    lead: "The user may want to invest. Explain $100 minimum and twice-monthly payouts, then point to /auth/signup.",
+    lead: "The user may want to invest. Explain ₦100,000 minimum and weekly 25% payouts, then point to /auth/signup.",
     feature: "Explain relevant investment features clearly.",
-    pricing: "Explain minimum $100, unlimited max, and the 50%/50% monthly payout schedule.",
+    pricing: "Explain minimum ₦100,000, unlimited max, and the weekly 25% × 4 payout schedule (week 4 includes interest).",
     onboarding: "Welcome new investors and guide them to sign up.",
   }
 

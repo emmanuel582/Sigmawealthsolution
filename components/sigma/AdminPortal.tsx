@@ -117,6 +117,13 @@ function AlertIconGlyph({ name, className }: { name?: string | null; className?:
 export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
   const { user, role, signOut, signInWithEmail } = useAuth()
 
+  // Ops-gate login may succeed without AuthContext session — keep a local admin actor
+  const [opsAdmin, setOpsAdmin] = useState<{ id: string; email: string; name: string } | null>(null)
+  const adminActor = user
+    ? { id: user.id, email: user.email, name: user.name || user.email || "Admin" }
+    : opsAdmin
+  const adminDisplayName = adminActor?.name || adminActor?.email || "Admin"
+
   const [isAdminVerified, setIsAdminVerified] = useState<boolean | null>(null)
   const [activeTab, setActiveTab] = useState<AdminTab>("overview")
   const [loading, setLoading] = useState(true)
@@ -1234,7 +1241,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
                         )}
                       </div>
                       <p className="text-[11px] text-[#163300]/45 mb-3">
-                        Mid-cycle = 50% of deposit · Month-end = remaining 50% + interest · Local banks (Opay, First Bank, etc.)
+                        Weekly = 25% of deposit · Week 4 = 25% + interest · Local banks (Opay, First Bank, etc.)
                       </p>
                       {(payoutsData.dueToday || []).length === 0 ? (
                         <p className="text-sm text-[#163300]/45 py-6 text-center">Nothing due today.</p>

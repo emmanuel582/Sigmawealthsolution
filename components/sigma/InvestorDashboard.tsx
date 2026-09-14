@@ -273,8 +273,8 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
   const handleSaveAutoDebit = async () => {
     if (!user) return;
     const amount = Number(monthlyDebitAmount);
-    if (!amount || amount <= 0) {
-      setActionError('Enter a valid monthly amount');
+    if (!amount || amount < 100000) {
+      setActionError('Minimum monthly auto-debit is ₦100,000');
       setTimeout(() => setActionError(null), 3000);
       return;
     }
@@ -366,8 +366,8 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
     if (!user) return;
     const isRecurring = Boolean(opts?.recurring) || paymentTab === 'monthly';
     const amount = Number(isRecurring ? (customAmount || monthlyDebitAmount) : customAmount);
-    if (!amount || amount <= 0) {
-      setActionError(isRecurring ? 'Enter a valid monthly amount.' : 'Enter a valid investment amount.');
+    if (!amount || amount < 100000) {
+      setActionError('Minimum deposit is ₦100,000. Amounts below this are not accepted.');
       setTimeout(() => setActionError(null), 4000);
       return;
     }

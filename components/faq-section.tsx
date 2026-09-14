@@ -5,17 +5,17 @@ export function FAQSection() {
     {
       question: "What is SigmawealthSolution?",
       answer:
-        "SigmawealthSolution is an investment platform where you can invest from $100 to unlimited amounts and receive your full return of investment within one month — paid in two parts.",
+        "SigmawealthSolution is an investment platform where you can invest from ₦100,000 and receive your full return within one month — paid weekly in four parts.",
     },
     {
       question: "How do payouts work?",
       answer:
-        "Returns are paid twice every month: 50% of your deposit within the first two weeks, and the remaining 50% plus interest at month end.",
+        "Returns are paid every week for 4 weeks: 25% of your deposit each week. Week 4 includes the final 25% plus interest.",
     },
     {
       question: "What is the minimum investment?",
       answer:
-        "The minimum investment is $100. There is no maximum — you can invest as much as you want.",
+        "The minimum investment is ₦100,000. Amounts below this are not accepted. There is no maximum — you can invest as much as you want.",
     },
     {
       question: "How can I fund my investment?",

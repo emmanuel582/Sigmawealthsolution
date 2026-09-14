@@ -9,14 +9,14 @@ const sections = [
   },
   {
     title: "2. Description of Service",
-    body: "SigmawealthSolution is an investment platform. Investors may contribute from a minimum of $100 with no maximum limit. Full return of investment is structured over one month, paid twice: 50% within the first two weeks, and 50% at the end of the month.",
+    body: "SigmawealthSolution is an investment platform. Investors may contribute from a minimum of ₦100,000 with no maximum limit. Full return of investment is structured over one month, paid weekly: 25% of deposit each week for 4 weeks, with interest included in week 4.",
   },
   {
     title: "3. Investments & Payouts",
     bullets: [
-      "Minimum investment: $100 USD (or equivalent).",
+      "Minimum investment: ₦100,000 (Naira only).",
       "Maximum investment: unlimited.",
-      "Payout schedule: 50% of deposit at ~2 weeks; remaining 50% plus interest at month end.",
+      "Payout schedule: 25% of deposit every week for 4 weeks; week 4 also includes interest.",
       "Payment methods may include Flutterwave (debit card / monthly auto-debit) and Opay transfer.",
       "Automatic payouts are sent to the local bank account you save in your dashboard.",
     ],

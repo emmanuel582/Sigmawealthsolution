@@ -31,13 +31,13 @@ export function Navbar() {
     {
       icon: Wallet,
       title: "Flexible Investing",
-      description: "Start from $100 — invest as much as you want",
+      description: "Start from ₦100,000 — invest as much as you want",
       href: "/#how-it-works",
     },
     {
       icon: Calendar,
-      title: "Twice-Monthly Payouts",
-      description: "50% in two weeks, 50% at month end",
+      title: "Weekly Payouts",
+      description: "25% every week for 4 weeks (week 4 includes interest)",
       href: "/#returns",
     },
     {

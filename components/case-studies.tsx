@@ -9,7 +9,7 @@ export function CaseStudies() {
   const caseStudies = [
     {
       company: "Tunde A.",
-      quote: "I started with just $100 and within a month I got my full return — half came in two weeks. SigmawealthSolution made investing simple and transparent for me.",
+      quote: "I started with ₦100,000 and within a month I got my full return — 25% came every week. SigmawealthSolution made investing simple and transparent for me.",
       description: "First-time Investor — Monthly Returns",
       image: "/images/case-study-1.jpeg",
       link: "Read full story"
@@ -23,7 +23,7 @@ export function CaseStudies() {
     },
     {
       company: "Emeka O.",
-      quote: "I was skeptical at first, but receiving 50% of my returns within two weeks proved this platform is legit. I've now invested over $5,000.",
+      quote: "I was skeptical at first, but receiving 25% every week proved this platform is legit. I've now invested over ₦5,000,000.",
       description: "Scaled Investor — Growing Portfolio",
       image: "/images/review-emeka.jpeg",
       link: "Read full story"
@@ -44,7 +44,7 @@ export function CaseStudies() {
     },
     {
       company: "Funke B.",
-      quote: "I recommend SigmawealthSolution to all my friends. The split payout system — 50% early, 50% at month end — gives me cash flow I can actually plan with.",
+      quote: "I recommend SigmawealthSolution to all my friends. The weekly 25% payouts give me cash flow I can actually plan with.",
       description: "Referral Advocate — Split Payout Benefits",
       image: "/images/review-funke.jpeg",
       link: "Read full story"

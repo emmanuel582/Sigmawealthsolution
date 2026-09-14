@@ -52,8 +52,8 @@ export function Footer() {
               <div>
                 <h3 className="text-sm font-semibold text-white md:text-gray-900 mb-4 md:mb-6">Products</h3>
                 <nav className="space-y-3 md:space-y-4">
-                  <Link href="/#investment" className="block text-sm text-white/55 md:text-gray-500 hover:text-white md:hover:text-[#004324] transition-colors" prefetch={false}>Invest from $100</Link>
-                  <Link href="/#returns" className="block text-sm text-white/55 md:text-gray-500 hover:text-white md:hover:text-[#004324] transition-colors" prefetch={false}>Twice-monthly payouts</Link>
+                  <Link href="/#investment" className="block text-sm text-white/55 md:text-gray-500 hover:text-white md:hover:text-[#004324] transition-colors" prefetch={false}>Invest from ₦100,000</Link>
+                  <Link href="/#returns" className="block text-sm text-white/55 md:text-gray-500 hover:text-white md:hover:text-[#004324] transition-colors" prefetch={false}>Weekly payouts (25% × 4)</Link>
                   <Link href="/#how-it-works" className="block text-sm text-white/55 md:text-gray-500 hover:text-white md:hover:text-[#004324] transition-colors" prefetch={false}>Auto-debit</Link>
                   <Link href="/#how-it-works" className="block text-sm text-white/55 md:text-gray-500 hover:text-white md:hover:text-[#004324] transition-colors" prefetch={false}>One-time deposits</Link>
                   <Link href="/dashboard" className="block text-sm text-white/55 md:text-gray-500 hover:text-white md:hover:text-[#004324] transition-colors" prefetch={false}>Investor dashboard</Link>

@@ -78,9 +78,9 @@ export function DetailedFeaturesSection() {
             <div className="mb-4">
               <p className="text-base sm:text-lg font-semibold text-black mb-2">Minimum Investment</p>
             </div>
-            <AnimatedCounter end={100} prefix="$" duration={2} />
+            <AnimatedCounter end={100000} prefix="₦" duration={2} />
             <p className="text-gray-600 mt-4 leading-relaxed text-sm sm:text-base">
-              start from $100 — invest up to unlimited
+              start from ₦100,000 — invest up to unlimited
             </p>
             <div className="hidden md:block absolute -right-8 lg:-right-12 top-1/2 transform -translate-y-1/2 w-px h-32 bg-gray-300" />
           </motion.div>
@@ -95,9 +95,9 @@ export function DetailedFeaturesSection() {
             <div className="mb-4">
               <p className="text-base sm:text-lg font-semibold text-black mb-2">First Payout</p>
             </div>
-            <AnimatedCounter end={50} suffix="%" duration={2} />
+            <AnimatedCounter end={25} suffix="%" duration={2} />
             <p className="text-gray-600 mt-4 leading-relaxed text-sm sm:text-base">
-              of your return paid within the first 2 weeks
+              of your deposit paid every week for 4 weeks
             </p>
             <div className="hidden md:block absolute -right-8 lg:-right-12 top-1/2 transform -translate-y-1/2 w-px h-32 bg-gray-300" />
           </motion.div>
@@ -112,9 +112,9 @@ export function DetailedFeaturesSection() {
             <div className="mb-4">
               <p className="text-base sm:text-lg font-semibold text-black mb-2">Full Cycle</p>
             </div>
-            <AnimatedCounter end={1} suffix=" month" duration={1.5} />
+            <AnimatedCounter end={4} suffix=" weeks" duration={1.5} />
             <p className="text-gray-600 mt-4 leading-relaxed text-sm sm:text-base">
-              complete return of investment by month end
+              complete return by week 4 (includes interest)
             </p>
           </motion.div>
         </div>

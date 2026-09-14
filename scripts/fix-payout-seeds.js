@@ -1,0 +1,15 @@
+const fs = require('fs');
+const path = 'server/sigma-api.ts';
+let s = fs.readFileSync(path, 'utf8');
+s = s.split("payout_phase: 'mid'").join("payout_phase: 'week1'");
+s = s.split('addDaysIso(now, 14)').join('addDaysIso(now, 7)');
+const oldSeed = `  const phase: 'mid' | 'final' = payoutPhase === 'final' ? 'final' : 'mid';
+  const nextDate = dueToday ? now.toISOString().split('T')[0] : addDaysIso(now, phase === 'mid' ? 14 : 30);`;
+const newSeed = `  const week = normalizePayoutWeek(payoutPhase || 'week1');
+  const phase = \`week\${week}\`;
+  const nextDate = dueToday ? now.toISOString().split('T')[0] : addDaysIso(now, week * 7);`;
+if (s.includes(oldSeed)) s = s.replace(oldSeed, newSeed);
+fs.writeFileSync(path, s);
+console.log('remaining mid seeds', (s.match(/payout_phase: 'mid'/g) || []).length);
+console.log('remaining +14', (s.match(/addDaysIso\(now, 14\)/g) || []).length);
+console.log('seed patched', s.includes('normalizePayoutWeek(payoutPhase'));

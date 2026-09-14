@@ -20,7 +20,7 @@ export function HeroSection() {
       }}
     >
       <Image
-        src="/images/finance-management-hero-bg-scaled.png"
+        src="/images/Herobg.png"
         alt="SigmawealthSolution investment background"
         fill
         style={{ objectFit: "cover" }}
@@ -59,7 +59,7 @@ export function HeroSection() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
             >
-              Invest from $100 to unlimited. Get your full return every month — 50% paid in the first two weeks, and the rest at month end.
+              Invest from ₦100,000. Get your full return every month — 25% paid every week for 4 weeks, with interest included in week 4.
             </motion.p>
 
             <motion.div

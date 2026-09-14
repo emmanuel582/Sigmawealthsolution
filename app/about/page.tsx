@@ -42,7 +42,7 @@ export default function AboutPage() {
               About SigmawealthSolution
             </h1>
             <p className="mt-4 text-white/65 text-base sm:text-lg max-w-xl leading-relaxed">
-              We help people grow wealth with clear monthly returns — from $100 to unlimited.
+              We help people grow wealth with clear monthly returns — from ₦100,000 upward.
             </p>
           </div>
         </section>
@@ -100,9 +100,9 @@ export default function AboutPage() {
               <h2 className="text-xl sm:text-2xl font-bold text-[#163300] mb-4">How investing works</h2>
               <ul className="space-y-3">
                 {[
-                  "Minimum investment: $100 (unlimited maximum)",
+                  "Minimum investment: ₦100,000 (unlimited maximum)",
                   "Full return of investment within one month",
-                  "50% paid at two weeks · 50% paid at month end",
+                  "25% paid every week for 4 weeks · week 4 includes interest",
                   "Fund via Flutterwave debit card, monthly auto-debit, or Opay transfer",
                 ].map((item) => (
                   <li key={item} className="flex gap-3 text-sm sm:text-base text-[#163300]/75 leading-relaxed">

@@ -16,18 +16,18 @@ import {
 const features = [
   {
     icon: Wallet,
-    title: "Start from $100 to Unlimited",
-    description: "Invest as little as $100 with zero upper ceiling. Build and scale your investment portfolio on your terms."
+    title: "Start from ₦100,000",
+    description: "Invest from ₦100,000 with no upper ceiling. Build and scale your investment portfolio on your terms."
   },
   {
     icon: Calendar,
-    title: "Twice-Monthly Return Schedule",
-    description: "Receive 50% of your returns within the first two weeks, and the remaining 50% at month end without delay."
+    title: "Weekly Return Schedule",
+    description: "Receive 25% of your deposit every week for 4 weeks — week 4 also includes your interest."
   },
   {
     icon: CreditCard,
     title: "Seamless Funding & Auto-Debit",
-    description: "Fund effortlessly via Paystack debit cards, monthly automated recurring debits, or fast Opay transfers."
+    description: "Fund effortlessly via Flutterwave debit cards or monthly automated recurring debits."
   },
   {
     icon: BarChart3,
