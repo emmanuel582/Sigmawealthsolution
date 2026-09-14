@@ -95,7 +95,7 @@ export default function TermsOfServicePage() {
               <h2 className="text-xl sm:text-2xl font-bold text-[#163300] mb-3">11. Contact</h2>
               <p className="text-[#163300]/75 text-sm sm:text-base leading-relaxed">
                 Questions about these Terms? Contact{" "}
-                <strong>Adetipe Adesanmi</strong> at{" "}
+                <strong>Alia</strong> at{" "}
                 <a href="tel:+358465560087" className="text-[#004324] font-semibold hover:underline">
                   +358 46 5560087
                 </a>{" "}

@@ -79,7 +79,7 @@ export function Footer() {
               <div className="hidden md:block">
                 <h3 className="text-sm font-semibold text-gray-900 mb-4 md:mb-6">Contact</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">
-                  Adetipe Adesanmi<br/><br/>
+                  Alia<br/><br/>
                   Harmony Gold estate olonde<br/>
                   Lagos, Nigeria.<br/><br/>
                   <a href="tel:+358465560087" className="hover:text-[#004324] transition-colors">+358 46 5560087</a>
@@ -153,7 +153,7 @@ export function Footer() {
             <Link href="#" className="text-white/55 hover:text-white transition-colors" aria-label="LinkedIn" prefetch={false}><Linkedin className="h-5 w-5" /></Link>
           </div>
           <p className="text-sm text-white/55 md:hidden leading-relaxed max-w-md">
-            Adetipe Adesanmi · +358 46 5560087 · Harmony Gold estate olonde, Lagos, Nigeria.
+            Alia · +358 46 5560087 · Harmony Gold estate olonde, Lagos, Nigeria.
           </p>
 
           {/* Desktop Only: Legal Links */}

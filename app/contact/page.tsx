@@ -11,7 +11,7 @@ import { motion } from "framer-motion"
 import { Mail, MapPin, Phone, User, Send, CheckCircle2 } from "lucide-react"
 
 const CONTACT = {
-  name: "Adetipe Adesanmi",
+  name: "Alia",
   phone: "+358 46 5560087",
   phoneHref: "tel:+358465560087",
   email: "hello@sigmawealthsolution.com",
