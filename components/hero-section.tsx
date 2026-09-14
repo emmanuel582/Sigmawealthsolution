@@ -20,7 +20,7 @@ export function HeroSection() {
       }}
     >
       <Image
-        src="/images/Herobg.png"
+        src="/images/finance-management-hero-bg-scaled.png"
         alt="SigmawealthSolution investment background"
         fill
         style={{ objectFit: "cover" }}
@@ -89,7 +89,7 @@ export function HeroSection() {
           >
             <div className="relative w-full max-w-xs sm:max-w-md lg:max-w-lg">
               <Image
-                src="/images/Gemini_Generated_Image_w40uojw40uojw40u-removebg-preview.png"
+                src="/images/Herobg.png"
                 alt="SigmawealthSolution investor platform"
                 width={600}
                 height={400}
