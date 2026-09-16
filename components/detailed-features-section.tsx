@@ -119,13 +119,41 @@ export function DetailedFeaturesSection() {
           </motion.div>
         </div>
 
-        <div className="mt-12 sm:mt-16 flex justify-center">
-          <div className="w-full max-w-6xl">
-            <video className="w-full h-auto rounded-2xl shadow-lg" controls preload="metadata">
-              <source src="/Top SaaS Marketing Video Example _ NeuraFlow.mp4" type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>
+        <motion.div
+          className="mt-12 sm:mt-16 flex justify-center"
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.25 }}
+          transition={{ duration: 0.6 }}
+        >
+          <div className="relative w-full max-w-6xl overflow-hidden rounded-2xl border border-[#004324]/15 shadow-lg min-h-[220px] sm:min-h-[280px] md:min-h-[320px]">
+            <Image
+              src="/images/finance-management-hero-bg-scaled.png"
+              alt=""
+              fill
+              className="object-cover"
+              sizes="(max-width: 1080px) 95vw, 1080px"
+            />
+            <div className="absolute inset-0 bg-[#004324]/55" />
+            <div className="relative z-10 flex flex-col items-center justify-center text-center px-6 sm:px-10 py-12 sm:py-16 gap-4 sm:gap-5">
+              <p className="text-[#9fe870] text-xs sm:text-sm font-semibold tracking-wide uppercase">
+                SigmawealthSolution
+              </p>
+              <h3 className="text-white text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight max-w-2xl leading-snug">
+                We grow your capital with clear weekly returns
+              </h3>
+              <p className="text-white/85 text-sm sm:text-base max-w-xl leading-relaxed">
+                Invest from ₦100,000, get 25% of your deposit back each week for 4 weeks, and manage everything from your dashboard — card fund, auto-debit, and bank payouts.
+              </p>
+              <Link
+                href="/auth/signup"
+                className="mt-2 inline-flex items-center justify-center rounded-xl bg-[#9fe870] text-[#163300] font-bold text-sm sm:text-base px-6 sm:px-8 py-3 hover:bg-[#b6f08e] transition-colors"
+              >
+                Start investing
+              </Link>
+            </div>
           </div>
+        </motion.div>
         </div>
       </div>
     </section>

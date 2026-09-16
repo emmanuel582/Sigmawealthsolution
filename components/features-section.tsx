@@ -127,7 +127,7 @@ export function FeaturesSection() {
             </div>
             <div className="mt-auto">
               <Image
-                src="/images/case-study-1.jpeg"
+                src="/images/content-example-1.jpeg"
                 alt="Investment payment options"
                 width={400}
                 height={200}
@@ -156,7 +156,7 @@ export function FeaturesSection() {
             </div>
             <div className="mt-auto">
               <Image
-                src="/images/case-study-2.jpeg"
+                src="/images/content-example-2.jpeg"
                 alt="Investment terms and control"
                 width={400}
                 height={200}
