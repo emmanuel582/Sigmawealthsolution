@@ -24,6 +24,12 @@ export interface BankDetails {
   bank_code: string;
   bank_name: string;
   account_name: string;
+  country?: string;
+  currency?: string;
+  routing_number?: string | null;
+  iban?: string | null;
+  bic?: string | null;
+  stripe_account_id?: string | null;
   flutterwave_beneficiary_id?: string | null;
   created_at: string;
   updated_at?: string;
@@ -31,7 +37,10 @@ export interface BankDetails {
 
 export interface CardDetails {
   user_id: string;
-  flutterwave_card_token: string;
+  flutterwave_card_token?: string;
+  flutterwave_customer_id?: string | null;
+  stripe_payment_method_id?: string | null;
+  stripe_customer_id?: string | null;
   card_last4: string;
   card_brand: string;
   card_exp_month?: string | null;

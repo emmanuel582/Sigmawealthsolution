@@ -17,7 +17,7 @@ const sections = [
       "Minimum investment: ₦100,000 (Naira only).",
       "Maximum investment: unlimited.",
       "Payout schedule: 25% of deposit every week for 4 weeks; week 4 also includes interest.",
-      "Payment methods may include Flutterwave (debit card / monthly auto-debit) and Opay transfer.",
+      "Payment methods may include Stripe (debit card / monthly auto-debit) and Opay transfer.",
       "Automatic payouts are sent to the local bank account you save in your dashboard.",
     ],
   },

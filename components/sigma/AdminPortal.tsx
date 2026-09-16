@@ -10,7 +10,7 @@ import {
   fetchAdminInvestors,
   deleteInvestorAccount,
   fetchAdminPayments,
-  syncFlutterwaveTransactions,
+  syncStripeTransactions,
   fetchAdminPayouts,
   togglePlatformPayoutMode,
   executeManualPayout,
@@ -466,11 +466,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
     }
   }
 
-  const handleSyncFlutterwave = async () => {
+  const handleSyncStripe = async () => {
     setSyncingFlw(true)
     try {
-      const res = await syncFlutterwaveTransactions()
-      showToast(res.message || "Synced with Flutterwave")
+      const res = await syncStripeTransactions()
+      showToast(res.message || "Synced with Stripe")
       await loadAllAdminData()
     } catch (err: any) {
       showToast(err.message || "Sync failed")
@@ -828,7 +828,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={handleSyncFlutterwave}
+              onClick={handleSyncStripe}
               disabled={syncingFlw || loading}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white border border-[#163300]/10 text-xs font-semibold hover:border-[#163300]/25 disabled:opacity-50"
             >
@@ -1274,12 +1274,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
                                       {item.investorName || item.investorEmail}
                                     </p>
                                     <p className="text-xs text-[#163300]/50">
-                                      {formatNaira(item.amount)}
+                                      Suggested {formatNaira(item.suggestedAmount || item.amount)}
+                                      {item.amountInvested ? ` · Invested ${formatNaira(item.amountInvested)}` : ""}
                                       {item.payoutLabel ? ` · ${item.payoutLabel}` : ""}
                                     </p>
                                     <p className="text-[10px] text-[#163300]/40 mt-0.5">
                                       {item.hasBeneficiary
-                                        ? item.bankName || "Bank on file"
+                                        ? `${item.bankName || "Bank on file"}${item.bankCountry ? ` · ${item.bankCountry}` : ""}${item.bankAccountLast4 ? ` · ••••${item.bankAccountLast4}` : ""}`
                                         : "⚠ Missing bank details"}
                                     </p>
                                   </div>
@@ -1730,7 +1731,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
                       <h3 className="font-bold">Platform</h3>
                     </div>
                     <p className="text-sm text-[#163300]/60">
-                      Live admin data loads from the Sigma API. Payments sync via Flutterwave. Payouts support
+                      Live admin data loads from the Sigma API. Payments sync via Stripe. Payouts support
                       automatic runs or manual mark-paid. Mass alerts appear instantly on investor dashboards.
                     </p>
                     <div className="grid sm:grid-cols-2 gap-3 pt-2">
@@ -1861,15 +1862,45 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setManualPayTarget(null)} />
           <SurfaceCard className="relative w-full max-w-md p-5 space-y-4">
-            <h3 className="font-black text-lg">Mark payout paid</h3>
-            <p className="text-sm">
-              {manualPayTarget.investorName || manualPayTarget.investorEmail} ·{" "}
-              <strong>{formatNaira(manualPayTarget.amount)}</strong>
-              {manualPayTarget.payoutLabel ? ` · ${manualPayTarget.payoutLabel}` : ""}
-            </p>
-            <p className="text-xs text-[#163300]/45">
-              Local bank payout (Opay / First Bank / etc). Missing details notify the investor.
-            </p>
+            <h3 className="font-black text-lg">Pay investor</h3>
+            <div className="text-sm space-y-1 rounded-xl bg-[#edefeb] p-3">
+              <p className="font-bold">{manualPayTarget.investorName || manualPayTarget.investorEmail}</p>
+              <p className="text-xs text-[#163300]/60">{manualPayTarget.investorEmail}</p>
+              <p className="text-xs">Invested: <strong>{formatNaira(manualPayTarget.amountInvested || 0)}</strong></p>
+              <p className="text-xs">Suggested (25%): <strong>{formatNaira(manualPayTarget.suggestedAmount || manualPayTarget.amount)}</strong></p>
+              {manualPayTarget.payoutLabel ? <p className="text-xs text-[#163300]/55">{manualPayTarget.payoutLabel}</p> : null}
+              {manualPayTarget.bankName ? (
+                <p className="text-xs">Bank: {manualPayTarget.bankName} · {manualPayTarget.bankCountry || 'NG'} · ••••{manualPayTarget.bankAccountLast4 || ''}</p>
+              ) : (
+                <p className="text-xs text-red-700">No bank on file</p>
+              )}
+            </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase text-[#163300]/45">Amount to pay (₦)</label>
+              <input
+                type="number"
+                value={manualPayTarget.amount}
+                onChange={(e) =>
+                  setManualPayTarget((prev: any) =>
+                    prev ? { ...prev, amount: Number(e.target.value) || 0 } : prev
+                  )
+                }
+                className="w-full h-11 px-4 rounded-xl border border-[#163300]/10 text-sm mt-1"
+              />
+              <button
+                type="button"
+                className="text-[11px] text-[#163300]/70 underline mt-1"
+                onClick={() =>
+                  setManualPayTarget((prev: any) =>
+                    prev
+                      ? { ...prev, amount: Number(prev.suggestedAmount || prev.amount) }
+                      : prev
+                  )
+                }
+              >
+                Use suggested 25%
+              </button>
+            </div>
             <input
               value={manualPayReferenceNote}
               onChange={(e) => setManualPayReferenceNote(e.target.value)}

@@ -15,20 +15,46 @@ import {
 const API_BASE = '/api';
 
 export async function fetchAppConfig(): Promise<{
+  stripeConfigured: boolean;
+  stripeSimulate: boolean;
+  stripeTestMode: boolean;
+  stripePublishableKey: string;
   flutterwaveConfigured: boolean;
   flutterwaveSandbox: boolean;
   opayAccountName: string;
   opayAccountNumber: string;
   opayBankName: string;
   isSupabaseLive: boolean;
+  minDepositNgn?: number;
+  referralRate?: number;
+  payoutHint?: string;
 }> {
   try {
     const res = await fetch(`${API_BASE}/config`);
     if (!res.ok) throw new Error('Failed to fetch config');
-    return await res.json();
+    const data = await res.json();
+    return {
+      stripeConfigured: Boolean(data.stripeConfigured ?? data.flutterwaveConfigured),
+      stripeSimulate: Boolean(data.stripeSimulate),
+      stripeTestMode: Boolean(data.stripeTestMode ?? data.flutterwaveSandbox),
+      stripePublishableKey: data.stripePublishableKey || '',
+      flutterwaveConfigured: Boolean(data.stripeConfigured ?? data.flutterwaveConfigured),
+      flutterwaveSandbox: Boolean(data.stripeSimulate ?? data.flutterwaveSandbox),
+      opayAccountName: data.opayAccountName || '',
+      opayAccountNumber: data.opayAccountNumber || '',
+      opayBankName: data.opayBankName || '',
+      isSupabaseLive: Boolean(data.isSupabaseLive),
+      minDepositNgn: data.minDepositNgn,
+      referralRate: data.referralRate,
+      payoutHint: data.payoutHint,
+    };
   } catch (error) {
     console.error('Error loading config:', error);
     return {
+      stripeConfigured: false,
+      stripeSimulate: false,
+      stripeTestMode: true,
+      stripePublishableKey: '',
       flutterwaveConfigured: false,
       flutterwaveSandbox: true,
       opayAccountName: '',
@@ -69,21 +95,30 @@ export async function verifyBankAccount(accountNumber: string, bankCode: string)
 
 export async function saveBankDetails(details: {
   userId: string;
-  accountNumber: string;
-  bankCode: string;
-  bankName: string;
+  accountNumber?: string;
+  bankCode?: string;
+  bankName?: string;
   accountName: string;
+  country?: string;
+  currency?: string;
+  routingNumber?: string;
+  iban?: string;
+  bic?: string;
+  stripeAccountId?: string;
 }): Promise<BankDetails> {
   const res = await fetch(`${API_BASE}/investor/bank-details`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(details),
   });
-  if (!res.ok) throw new Error('Failed to save bank details');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to save bank details');
+  }
   return await res.json();
 }
 
-export async function initiateFlutterwavePayment(payload: {
+export async function initiateStripePayment(payload: {
   userId: string;
   email: string;
   name?: string;
@@ -91,17 +126,25 @@ export async function initiateFlutterwavePayment(payload: {
   amount: number;
   phase: string;
   isRecurringPlan?: boolean;
+  monthlyPlanAmount?: number;
+  saveCard?: boolean;
   paymentType?: 'card' | 'opay';
 }): Promise<{
   success: boolean;
   chargeId: string;
+  sessionId?: string;
   reference: string;
   status: string;
   redirectUrl: string | null;
   completed: boolean;
+  simulated?: boolean;
+  amountCharged?: number;
+  monthlyPlanAmount?: number | null;
+  payment?: Payment;
+  investment?: Investment;
   nextAction?: unknown;
 }> {
-  const res = await fetch(`${API_BASE}/flutterwave/initiate`, {
+  const res = await fetch(`${API_BASE}/stripe/initiate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -113,8 +156,23 @@ export async function initiateFlutterwavePayment(payload: {
   return await res.json();
 }
 
-export async function verifyFlutterwavePayment(payload: {
+/** @deprecated Use initiateStripePayment */
+export async function initiateFlutterwavePayment(payload: {
+  userId: string;
+  email: string;
+  name?: string;
+  phone?: string;
+  amount: number;
+  phase: string;
+  isRecurringPlan?: boolean;
+  paymentType?: 'card' | 'opay';
+}) {
+  return initiateStripePayment(payload);
+}
+
+export async function verifyStripePayment(payload: {
   chargeId?: string;
+  sessionId?: string;
   transactionId?: string | number;
   txRef?: string;
   flwRef?: string;
@@ -124,8 +182,9 @@ export async function verifyFlutterwavePayment(payload: {
   amount: number;
   phase: string;
   isRecurringPlan?: boolean;
+  monthlyPlanAmount?: number;
 }): Promise<{ success: boolean; message: string; payment: Payment; investment: Investment; profile?: Profile }> {
-  const res = await fetch(`${API_BASE}/flutterwave/verify`, {
+  const res = await fetch(`${API_BASE}/stripe/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -137,13 +196,34 @@ export async function verifyFlutterwavePayment(payload: {
   return await res.json();
 }
 
-export async function syncFlutterwaveTransactions(): Promise<{ success: boolean; syncedCount: number; totalPayments: number; message?: string }> {
-  const res = await fetch(`${API_BASE}/flutterwave/sync`, {
+/** @deprecated Use verifyStripePayment */
+export async function verifyFlutterwavePayment(payload: {
+  chargeId?: string;
+  transactionId?: string | number;
+  txRef?: string;
+  flwRef?: string;
+  userId: string;
+  email?: string;
+  name?: string;
+  amount: number;
+  phase: string;
+  isRecurringPlan?: boolean;
+}) {
+  return verifyStripePayment(payload);
+}
+
+export async function syncStripeTransactions(): Promise<{ success: boolean; syncedCount: number; totalPayments: number; message?: string }> {
+  const res = await fetch(`${API_BASE}/stripe/sync`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
-  if (!res.ok) throw new Error('Failed to sync Flutterwave transactions');
+  if (!res.ok) throw new Error('Failed to sync Stripe transactions');
   return await res.json();
+}
+
+/** @deprecated Use syncStripeTransactions */
+export async function syncFlutterwaveTransactions() {
+  return syncStripeTransactions();
 }
 
 export async function cancelAutoDebitPlan(userId: string): Promise<{ success: boolean; message: string }> {

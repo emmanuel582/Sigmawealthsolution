@@ -114,6 +114,7 @@ export function applySecurityMiddleware(app: Express): void {
     message: { message: 'Too many payment attempts. Please try again later.' },
   });
   app.use('/api/flutterwave/', paymentLimiter);
+  app.use('/api/stripe/', paymentLimiter);
   app.use('/api/payouts/', paymentLimiter);
 }
 

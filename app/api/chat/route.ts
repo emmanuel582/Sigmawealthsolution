@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
   - Minimum investment: ₦100,000 (Naira only); maximum: unlimited
   - Full return of investment within one month
   - Payouts weekly: 25% of deposit every week for 4 weeks; week 4 also includes interest
-  - Payments: Flutterwave debit card or monthly auto-debit
+  - Payments: Stripe debit card or monthly auto-debit
   - Investor dashboard: total invested, next payment date, card details
   `
 

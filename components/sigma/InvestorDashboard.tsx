@@ -12,9 +12,9 @@ import {
   fetchNigerianBanks, 
   verifyBankAccount, 
   saveBankDetails,
-  initiateFlutterwavePayment,
-  verifyFlutterwavePayment,
-  syncFlutterwaveTransactions,
+  initiateStripePayment,
+  verifyStripePayment,
+  syncStripeTransactions,
   saveAutoDebitPlan,
   type ReferralItem,
   type AutoDebitPlan,
@@ -84,8 +84,13 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
   const [inviteCopied, setInviteCopied] = useState(false);
 
   // Config & Banks
-  const [flutterwaveConfigured, setFlutterwaveConfigured] = useState(false);
-  const [flutterwaveSandbox, setFlutterwaveSandbox] = useState(true);
+  const [stripeConfigured, setStripeConfigured] = useState(false);
+  const [stripeSimulate, setStripeSimulate] = useState(true);
+  const [payoutCountry, setPayoutCountry] = useState('NG');
+  const [routingNumber, setRoutingNumber] = useState('');
+  const [iban, setIban] = useState('');
+  const [bic, setBic] = useState('');
+  const [manualAccountName, setManualAccountName] = useState('');
   const [banksList, setBanksList] = useState<BankItem[]>([]);
 
   // Modals
@@ -131,8 +136,8 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
         fetchInvestorDashboardData(user.id, user.email),
       ]);
 
-      setFlutterwaveConfigured(configData.flutterwaveConfigured);
-      setFlutterwaveSandbox(configData.flutterwaveSandbox);
+      setStripeConfigured(Boolean(configData.stripeConfigured ?? configData.flutterwaveConfigured));
+      setStripeSimulate(Boolean(configData.stripeSimulate ?? configData.flutterwaveSandbox));
       setBanksList(banks);
 
       setProfile(dashData.profile);
@@ -160,13 +165,13 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
   const handleSyncTransactions = async () => {
     setSyncingFlw(true);
     try {
-      const res = await syncFlutterwaveTransactions();
+      const res = await syncStripeTransactions();
       setActionSuccess(res.message || 'Synced transactions successfully');
       setTimeout(() => setActionSuccess(null), 4000);
       await loadData();
       await refreshProfile();
     } catch (err: any) {
-      setActionError(err.message || 'Failed to sync Flutterwave');
+      setActionError(err.message || 'Failed to sync Stripe');
       setTimeout(() => setActionError(null), 4000);
     } finally {
       setSyncingFlw(false);
@@ -217,7 +222,16 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
     }
   };
 
+  const hasSavedCard = Boolean(
+    cardDetails?.stripe_payment_method_id || cardDetails?.flutterwave_card_token
+  );
+
   const handleVerifyBank = async () => {
+    if (payoutCountry !== 'NG') {
+      setBankError('For US/IBAN destinations, enter the account holder name manually and save.');
+      setTimeout(() => setBankError(null), 4000);
+      return;
+    }
     if (!accountNumber || accountNumber.length !== 10 || !bankCode) {
       setBankError('Please provide a valid 10-digit account number and select a bank.');
       return;
@@ -241,8 +255,22 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
   };
 
   const handleSaveBank = async () => {
-    if (!user || !accountName || !accountNumber || !bankCode) {
-      setBankError('Please verify your account details before saving.');
+    if (!user) return;
+    const holder = accountName || manualAccountName;
+    if (!holder) {
+      setBankError('Account holder name is required.');
+      return;
+    }
+    if (payoutCountry === 'NG' && (!accountNumber || !bankCode)) {
+      setBankError('Please verify your Nigerian account details before saving.');
+      return;
+    }
+    if (payoutCountry === 'US' && (!routingNumber || !accountNumber)) {
+      setBankError('US routing number (9 digits) and account number are required.');
+      return;
+    }
+    if (payoutCountry !== 'NG' && payoutCountry !== 'US' && !iban && !(accountNumber && bic)) {
+      setBankError('Provide IBAN or account number + BIC/SWIFT.');
       return;
     }
     setSavingBank(true);
@@ -251,13 +279,20 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
       const selectedBankObj = banksList.find((b) => b.code === bankCode);
       const saved = await saveBankDetails({
         userId: user.id,
-        accountNumber,
-        bankCode,
-        bankName: selectedBankObj?.name || 'Commercial Bank',
-        accountName,
+        accountNumber: accountNumber || undefined,
+        bankCode: bankCode || undefined,
+        bankName:
+          selectedBankObj?.name ||
+          (payoutCountry === 'US' ? 'US Bank (ACH)' : payoutCountry === 'NG' ? 'Commercial Bank' : 'International bank'),
+        accountName: holder,
+        country: payoutCountry,
+        currency: payoutCountry === 'US' ? 'USD' : payoutCountry === 'NG' ? 'NGN' : 'EUR',
+        routingNumber: routingNumber || undefined,
+        iban: iban || undefined,
+        bic: bic || undefined,
       });
       setBankDetails(saved);
-      setBankSuccess('Bank destination saved for payouts!');
+      setBankSuccess('Payout destination saved!');
       setTimeout(() => {
         setBankSuccess(null);
         setShowBankModal(false);
@@ -295,14 +330,17 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
 
   const finalizePayment = async (params: {
     chargeId: string;
+    sessionId?: string;
     reference: string;
     amount: number;
     isRecurring: boolean;
+    monthlyPlanAmount?: number;
     phase?: string;
   }) => {
     if (!user) return;
-    const verified = await verifyFlutterwavePayment({
+    const verified = await verifyStripePayment({
       chargeId: params.chargeId,
+      sessionId: params.sessionId,
       txRef: params.reference,
       userId: user.id,
       email: user.email,
@@ -310,12 +348,13 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
       amount: params.amount,
       phase: params.phase || selectedPhase,
       isRecurringPlan: params.isRecurring,
+      monthlyPlanAmount: params.monthlyPlanAmount,
     });
 
     if (verified.success) {
       setActionSuccess(
         params.isRecurring
-          ? `Payment of ${formatNaira(params.amount)} confirmed. Monthly auto-debit is now active.`
+          ? `Min charge of ${formatNaira(params.amount)} confirmed. Monthly auto-debit of ${formatNaira(params.monthlyPlanAmount || params.amount)} is active.`
           : `Payment of ${formatNaira(params.amount)} confirmed. Investment credited.`
       );
       setTimeout(() => setActionSuccess(null), 5000);
@@ -332,23 +371,26 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
     if (!hashQuery) return;
 
     const params = new URLSearchParams(hashQuery);
-    if (params.get('flw_return') !== '1') return;
+    if (params.get('stripe_return') !== '1' && params.get('flw_return') !== '1') return;
 
     const stored = sessionStorage.getItem('apex_pending_payment');
     const pending = stored ? JSON.parse(stored) : null;
     const reference = params.get('reference') || pending?.reference;
+    const sessionId = params.get('session_id') || params.get('sessionId') || pending?.sessionId;
     const chargeId = params.get('charge_id') || params.get('chargeId') || pending?.chargeId;
 
-    if (!reference && !chargeId) return;
+    if (!reference && !chargeId && !sessionId) return;
 
     (async () => {
       setProcessingPayment(true);
       try {
         await finalizePayment({
-          chargeId: chargeId || '',
+          chargeId: chargeId || sessionId || '',
+          sessionId: sessionId || undefined,
           reference: reference || '',
           amount: Number(pending?.amount) || 0,
           isRecurring: Boolean(pending?.isRecurring),
+          monthlyPlanAmount: pending?.monthlyPlanAmount ? Number(pending.monthlyPlanAmount) : undefined,
           phase: pending?.phase,
         });
         sessionStorage.removeItem('apex_pending_payment');
@@ -362,7 +404,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
     })();
   }, [user?.id]);
 
-  const handleFlutterwavePayment = async (opts?: { recurring?: boolean }) => {
+  const handleStripePayment = async (opts?: { recurring?: boolean }) => {
     if (!user) return;
     const isRecurring = Boolean(opts?.recurring) || paymentTab === 'monthly';
     const amount = Number(isRecurring ? (customAmount || monthlyDebitAmount) : customAmount);
@@ -371,14 +413,14 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
       setTimeout(() => setActionError(null), 4000);
       return;
     }
-    if (!flutterwaveConfigured) {
+    if (!stripeConfigured) {
       setActionError('Card payments are not configured. Contact support.');
       setTimeout(() => setActionError(null), 4000);
       return;
     }
 
     // If card already on file and setting monthly amount only, skip checkout
-    if (isRecurring && cardDetails?.flutterwave_card_token) {
+    if (isRecurring && hasSavedCard) {
       setProcessingPayment(true);
       try {
         const plan = await saveAutoDebitPlan(user.id, amount);
@@ -400,7 +442,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
     setProcessingPayment(true);
 
     try {
-      const initiated = await initiateFlutterwavePayment({
+      const initiated = await initiateStripePayment({
         userId: user.id,
         email: user.email,
         name: user.name,
@@ -408,6 +450,8 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
         amount,
         phase: selectedPhase,
         isRecurringPlan: isRecurring,
+        monthlyPlanAmount: isRecurring ? amount : undefined,
+        saveCard: isRecurring,
         paymentType: 'card',
       });
 
@@ -415,9 +459,11 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
         'apex_pending_payment',
         JSON.stringify({
           chargeId: initiated.chargeId,
+          sessionId: initiated.sessionId,
           reference: initiated.reference,
-          amount,
+          amount: initiated.amountCharged || (isRecurring ? 100000 : amount),
           isRecurring,
+          monthlyPlanAmount: isRecurring ? amount : undefined,
           phase: selectedPhase,
         })
       );
@@ -427,14 +473,27 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
         return;
       }
 
-      if (initiated.completed || initiated.status === 'succeeded') {
+      if (initiated.completed || initiated.status === 'succeeded' || initiated.simulated) {
         setShowPaymentModal(false);
-        await finalizePayment({
-          chargeId: initiated.chargeId,
-          reference: initiated.reference,
-          amount,
-          isRecurring,
-        });
+        if (initiated.payment) {
+          setActionSuccess(
+            isRecurring
+              ? `Min charge confirmed. Monthly auto-debit of ${formatNaira(amount)} is active.`
+              : `Payment of ${formatNaira(initiated.amountCharged || amount)} confirmed.`
+          );
+          setTimeout(() => setActionSuccess(null), 5000);
+          await refreshProfile();
+          await loadData();
+        } else {
+          await finalizePayment({
+            chargeId: initiated.chargeId,
+            sessionId: initiated.sessionId,
+            reference: initiated.reference,
+            amount: initiated.amountCharged || (isRecurring ? 100000 : amount),
+            isRecurring,
+            monthlyPlanAmount: isRecurring ? amount : undefined,
+          });
+        }
         return;
       }
 
@@ -630,7 +689,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                   <AppIcon name="wallet" className="w-4 h-4 text-[#9fe870]" />
                 </div>
                 <p className="text-sm font-bold truncate">{formatNaira(referralEarnings)}</p>
-                <p className="text-[10px] text-[#163300]/45">10% of invitee investments</p>
+                <p className="text-[10px] text-[#163300]/45">5% of invitee first investment</p>
               </SurfaceCard>
               <SurfaceCard className="p-4 space-y-1" interactive>
                 <div className="flex items-center justify-between">
@@ -654,7 +713,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
             <SurfaceCard className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3" interactive>
               <div>
                 <span className="text-[10px] font-bold text-[#163300]/50 uppercase">Referral</span>
-                <p className="text-sm font-bold mt-1">Earn 10% when someone you invite invests</p>
+                <p className="text-sm font-bold mt-1">Earn 5% of their first investment (paid end of week)</p>
                 <p className="text-xs text-[#163300]/50 mt-0.5">
                   Wallet: {formatNaira(referralEarnings)} · {referralCount} invitees
                 </p>
@@ -675,7 +734,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
               </div>
               <div>
                 <p className="text-sm font-bold text-[#163300]">Share your invite link</p>
-                <p className="text-xs text-[#163300]/60">Cookie tracks signups for 30 days — you earn 10%.</p>
+                <p className="text-xs text-[#163300]/60">Cookie tracks signups for 30 days — you earn 5% of their first deposit, paid weekly.</p>
               </div>
             </motion.div>
 
@@ -871,7 +930,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
 
                 {cardDetails ? (
                   <div className="p-4 rounded-2xl bg-[#163300] text-white space-y-2">
-                    <p className="text-[10px] text-[#9fe870]">Saved on Flutterwave</p>
+                    <p className="text-[10px] text-[#9fe870]">Saved on Stripe</p>
                     <p className="font-mono tracking-wider text-sm">
                       {maskCardNumber(cardDetails.card_last4, cardDetails.card_brand)}
                     </p>
@@ -881,7 +940,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                   <div className="p-4 border border-dashed border-[#163300]/15 rounded-xl text-center space-y-2">
                     <p className="text-xs font-semibold">No card saved yet</p>
                     <p className="text-[11px] text-[#163300]/50">
-                      Make a Fund payment once — Flutterwave will save your card for monthly debit.
+                      Set your monthly amount, then we charge the ₦100,000 minimum to save your card on Stripe.
                     </p>
                     <button
                       onClick={() => setShowPaymentModal(true)}
@@ -909,7 +968,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                   <PressableButton
                     size="sm"
                     fullWidth
-                    disabled={savingAutoDebit || !cardDetails}
+                    disabled={savingAutoDebit || !hasSavedCard}
                     onClick={handleSaveAutoDebit}
                   >
                     {savingAutoDebit
@@ -1072,7 +1131,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
             <div className="flex items-center justify-between border-b border-[#163300]/8 pb-3">
               <div>
                 <h3 className="text-lg font-bold text-[#163300]">Make a Contribution</h3>
-                <p className="text-xs text-[#163300]/50">Pay securely with Flutterwave</p>
+                <p className="text-xs text-[#163300]/50">Pay securely with Stripe</p>
               </div>
               <button
                 onClick={() => setShowPaymentModal(false)}
@@ -1113,7 +1172,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
             <div className="space-y-4">
               {paymentTab === 'one-time' ? (
                 <div className="p-3.5 rounded-xl bg-sky-50 border border-sky-100 text-xs text-slate-700 leading-relaxed">
-                  <strong>One-time contribution:</strong> Pay securely via Flutterwave checkout for your deposit.
+                  <strong>One-time contribution:</strong> Pay securely via Stripe Checkout for your deposit.
                 </div>
               ) : (
                 <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-100 text-xs text-slate-700 leading-relaxed space-y-1.5">
@@ -1121,9 +1180,9 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                     <strong>Monthly auto-debit:</strong> Set the amount to remove from your card every month.
                   </p>
                   <p className="text-[#163300]/70">
-                    {cardDetails?.flutterwave_card_token
+                    {hasSavedCard
                       ? `Saved card •••• ${cardDetails.card_last4 || '****'} will be charged automatically.`
-                      : 'Your first payment saves the card securely with Flutterwave, then monthly charges run on schedule.'}
+                      : 'Enter the monthly amount first. We charge the ₦100,000 minimum once to save the card, then debit that monthly amount automatically.'}
                   </p>
                   {autoDebitPlan?.active && (
                     <p className="font-semibold text-emerald-800">
@@ -1151,18 +1210,18 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
               </div>
 
               <button
-                onClick={() => handleFlutterwavePayment({ recurring: paymentTab === 'monthly' })}
-                disabled={processingPayment || !flutterwaveConfigured}
+                onClick={() => handleStripePayment({ recurring: paymentTab === 'monthly' })}
+                disabled={processingPayment || !stripeConfigured}
                 className="w-full py-3 rounded-xl text-sm font-bold bg-slate-900 text-white hover:bg-slate-800 transition flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 <span>
                   {processingPayment
                     ? 'Processing…'
                     : paymentTab === 'monthly'
-                      ? cardDetails?.flutterwave_card_token
+                      ? hasSavedCard
                         ? `Activate ${customAmount ? formatNaira(customAmount) : 'monthly'} auto-debit`
                         : `Pay & set up ${customAmount ? formatNaira(customAmount) : 'monthly'} auto-debit`
-                      : `Pay ${customAmount ? formatNaira(customAmount) : 'now'} via Flutterwave`}
+                      : `Pay ${customAmount ? formatNaira(customAmount) : 'now'} via Stripe`}
                 </span>
                 <ArrowUpRight className="w-4 h-4" />
               </button>
@@ -1183,7 +1242,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-bold text-[#163300]">Your invite link</h3>
-                <p className="text-xs text-[#163300]/50">Share this — you earn 10% when they invest</p>
+                <p className="text-xs text-[#163300]/50">Share this — you earn 5% of their first investment</p>
               </div>
               <button type="button" onClick={() => setShowInviteModal(false)} className="p-1 rounded-lg hover:bg-[#edefeb]">
                 <X className="w-5 h-5" />
@@ -1235,6 +1294,35 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Country
+                </label>
+                <select
+                  value={payoutCountry}
+                  onChange={(e) => {
+                    setPayoutCountry(e.target.value);
+                    setAccountName('');
+                    setManualAccountName('');
+                  }}
+                  className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900"
+                >
+                  <option value="NG">Nigeria (NUBAN)</option>
+                  <option value="US">United States (ACH)</option>
+                  <option value="GB">United Kingdom (IBAN)</option>
+                  <option value="DE">Germany (IBAN)</option>
+                  <option value="FR">France (IBAN)</option>
+                  <option value="CA">Canada (account + BIC)</option>
+                  <option value="AE">UAE (IBAN)</option>
+                  <option value="ZA">South Africa (account + BIC)</option>
+                </select>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Stripe pays banks via Connect / Global Payouts: US routing+account, NG NUBAN, or IBAN elsewhere.
+                </p>
+              </div>
+
+              {payoutCountry === 'NG' ? (
+                <>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Select Bank
                 </label>
                 <select
@@ -1280,17 +1368,86 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                   </button>
                 </div>
               </div>
+                </>
+              ) : payoutCountry === 'US' ? (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Routing number</label>
+                    <input
+                      type="text"
+                      maxLength={9}
+                      value={routingNumber}
+                      onChange={(e) => setRoutingNumber(e.target.value.replace(/\D/g, ''))}
+                      placeholder="9-digit ABA routing"
+                      className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-sm font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Account number</label>
+                    <input
+                      type="text"
+                      value={accountNumber}
+                      onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))}
+                      placeholder="Account number"
+                      className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-sm font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Account holder name</label>
+                    <input
+                      type="text"
+                      value={manualAccountName}
+                      onChange={(e) => setManualAccountName(e.target.value)}
+                      placeholder="Full legal name"
+                      className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-sm"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">IBAN</label>
+                    <input
+                      type="text"
+                      value={iban}
+                      onChange={(e) => setIban(e.target.value.toUpperCase())}
+                      placeholder="IBAN"
+                      className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-sm font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">BIC / SWIFT (optional if IBAN)</label>
+                    <input
+                      type="text"
+                      value={bic}
+                      onChange={(e) => setBic(e.target.value.toUpperCase())}
+                      placeholder="BIC"
+                      className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-sm font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Account holder name</label>
+                    <input
+                      type="text"
+                      value={manualAccountName}
+                      onChange={(e) => setManualAccountName(e.target.value)}
+                      placeholder="Full legal name"
+                      className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-sm"
+                    />
+                  </div>
+                </>
+              )}
 
-              {accountName && (
+              {(accountName || (payoutCountry !== 'NG' && manualAccountName)) && (
                 <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                  <span className="text-[11px] text-slate-500 block">Verified Account Name:</span>
-                  <span className="font-bold text-sm text-slate-900 uppercase">{accountName}</span>
+                  <span className="text-[11px] text-slate-500 block">Account Name:</span>
+                  <span className="font-bold text-sm text-slate-900 uppercase">{accountName || manualAccountName}</span>
                 </div>
               )}
 
               <button
                 onClick={handleSaveBank}
-                disabled={savingBank || !accountName}
+                disabled={savingBank || !(accountName || manualAccountName)}
                 className="w-full py-3 rounded-xl text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-500 transition disabled:opacity-40"
               >
                 {savingBank ? 'Saving Bank Details...' : 'Save Payout Bank Destination'}

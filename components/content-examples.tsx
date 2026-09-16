@@ -27,7 +27,7 @@ const features = [
   {
     icon: CreditCard,
     title: "Seamless Funding & Auto-Debit",
-    description: "Fund effortlessly via Flutterwave debit cards or monthly automated recurring debits."
+    description: "Fund effortlessly via Stripe debit cards or monthly automated recurring debits."
   },
   {
     icon: BarChart3,
@@ -42,7 +42,7 @@ const features = [
   {
     icon: Landmark,
     title: "Direct Bank Account Payouts",
-    description: "Returns are disbursed straight into your verified Nigerian bank account with automated transaction receipts."
+    description: "Returns are disbursed to verified bank accounts worldwide (NG NUBAN, US ACH, or IBAN) via Stripe Connect / Global Payouts."
   },
   {
     icon: Users,
@@ -51,8 +51,8 @@ const features = [
   },
   {
     icon: Gift,
-    title: "10% On Referral",
-    description: "Invite your friends and earn an instant 10% commission when they make their first investment."
+    title: "5% On Referral",
+    description: "Invite your friends and earn 5% of their first investment — paid to your bank at the end of the week."
   }
 ]
 

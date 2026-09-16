@@ -20,7 +20,7 @@ export function FAQSection() {
     {
       question: "How can I fund my investment?",
       answer:
-        "You can pay with a debit card through Flutterwave (including optional monthly auto-debit), make a one-time payment, or transfer via Opay.",
+        "You can pay with a debit card through Stripe (including optional monthly auto-debit), make a one-time payment, or transfer via Opay.",
     },
     {
       question: "What will I see in my investor dashboard?",
