@@ -2,8 +2,31 @@ import Stripe from 'stripe';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
-/** Charge / settle currency — default NGN; override with STRIPE_CURRENCY=usd if your Stripe account requires it */
+
+/** Platform settle currency — investors can still pay in other currencies when allowed */
 export const STRIPE_CURRENCY = (process.env.STRIPE_CURRENCY || 'ngn').toLowerCase();
+
+/**
+ * Minimum top-up / monthly auto-debit floor ≈ ₦100,000 (~USD 72).
+ * Override any rate via STRIPE_FX_<CURRENCY>=rate_to_ngn (how many NGN per 1 unit).
+ */
+export const MIN_DEPOSIT_NGN = 100_000;
+export const MIN_DEPOSIT_USD = Number(process.env.MIN_DEPOSIT_USD || 72);
+
+/** Tiny auto-debit setup fee when investor already funded (avoid double 100k). NGN major units. */
+export const AUTO_DEBIT_SETUP_FEE_NGN = Number(process.env.AUTO_DEBIT_SETUP_FEE_NGN || 1);
+
+const DEFAULT_FX_TO_NGN: Record<string, number> = {
+  ngn: 1,
+  usd: MIN_DEPOSIT_NGN / MIN_DEPOSIT_USD, // ~1388.89
+  eur: Number(process.env.STRIPE_FX_EUR || 1500),
+  gbp: Number(process.env.STRIPE_FX_GBP || 1750),
+  cad: Number(process.env.STRIPE_FX_CAD || 1000),
+  aud: Number(process.env.STRIPE_FX_AUD || 900),
+  zar: Number(process.env.STRIPE_FX_ZAR || 75),
+  ghs: Number(process.env.STRIPE_FX_GHS || 90),
+  kes: Number(process.env.STRIPE_FX_KES || 10),
+};
 
 let stripeSingleton: Stripe | null = null;
 
@@ -11,20 +34,22 @@ export function isStripeConfigured(): boolean {
   return Boolean(STRIPE_SECRET_KEY && STRIPE_SECRET_KEY.startsWith('sk_'));
 }
 
+export function isStripeLiveMode(): boolean {
+  return Boolean(STRIPE_SECRET_KEY.startsWith('sk_live_'));
+}
+
 export function isStripeTestMode(): boolean {
   return STRIPE_SECRET_KEY.includes('_test_') || process.env.STRIPE_MODE === 'test';
 }
 
-/** Local/dev without keys — payments complete in-process so flows can be tested */
+/** Simulation is OFF unless explicitly allowed (never auto-on when keys missing). */
 export function isStripeSimulateMode(): boolean {
-  if (process.env.STRIPE_SIMULATE_PAYMENTS === '1') return true;
-  if (process.env.STRIPE_SIMULATE_PAYMENTS === '0') return false;
-  return !isStripeConfigured();
+  return process.env.STRIPE_ALLOW_SIMULATE === '1' && process.env.NODE_ENV !== 'production';
 }
 
 export function getStripe(): Stripe {
   if (!isStripeConfigured()) {
-    throw new Error('Stripe is not configured. Set STRIPE_SECRET_KEY.');
+    throw new Error('Stripe is not configured. Set STRIPE_SECRET_KEY (sk_live_… for production).');
   }
   if (!stripeSingleton) {
     stripeSingleton = new Stripe(STRIPE_SECRET_KEY, {
@@ -39,12 +64,85 @@ export function getStripePublishableKey(): string {
   return process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || process.env.STRIPE_PUBLISHABLE_KEY || '';
 }
 
-export function toMinorUnits(amountMajor: number): number {
+export function getFrontendBaseUrl(): string {
+  return (
+    process.env.FRONTEND_URL ||
+    process.env.APP_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    'https://sigmawealthsolution.vercel.app'
+  ).replace(/\/$/, '');
+}
+
+export function getApiBaseUrl(): string {
+  return (
+    process.env.PUBLIC_API_URL ||
+    process.env.SIGMA_API_PUBLIC_URL ||
+    process.env.RENDER_EXTERNAL_URL ||
+    'https://sigmawealthsolutionbackend.onrender.com'
+  ).replace(/\/$/, '');
+}
+
+/** Stripe Dashboard → Developers → Webhooks → endpoint URL */
+export function getStripeWebhookUrl(): string {
+  return `${getApiBaseUrl()}/api/stripe/webhook`;
+}
+
+export function getStripeSuccessUrl(reference: string): string {
+  return `${getFrontendBaseUrl()}/dashboard?stripe_return=1&reference=${encodeURIComponent(reference)}&session_id={CHECKOUT_SESSION_ID}`;
+}
+
+export function getStripeCancelUrl(): string {
+  return `${getFrontendBaseUrl()}/dashboard?stripe_cancel=1`;
+}
+
+export function fxToNgn(currency: string): number {
+  const c = (currency || 'ngn').toLowerCase();
+  const envKey = `STRIPE_FX_${c.toUpperCase()}`;
+  if (process.env[envKey]) return Number(process.env[envKey]);
+  return DEFAULT_FX_TO_NGN[c] || DEFAULT_FX_TO_NGN.usd;
+}
+
+export function minDepositMajor(currency: string): number {
+  const c = (currency || STRIPE_CURRENCY).toLowerCase();
+  if (c === 'ngn') return MIN_DEPOSIT_NGN;
+  if (c === 'usd') return MIN_DEPOSIT_USD;
+  const rate = fxToNgn(c);
+  return Math.max(1, Math.ceil(MIN_DEPOSIT_NGN / rate));
+}
+
+export function assertMinDepositMajor(amountMajor: number, currency: string): string | null {
+  const min = minDepositMajor(currency);
+  if (!Number.isFinite(amountMajor) || amountMajor < min) {
+    const cur = (currency || 'ngn').toUpperCase();
+    return `Minimum is ${min.toLocaleString()} ${cur} (≈ ₦${MIN_DEPOSIT_NGN.toLocaleString()} / ~$${MIN_DEPOSIT_USD}).`;
+  }
+  return null;
+}
+
+/** Zero-decimal currencies (Stripe) — amount already in major units as smallest */
+const ZERO_DECIMAL = new Set(['jpy', 'krw', 'vnd', 'clp', 'ugx', 'xaf', 'xof']);
+
+export function toMinorUnits(amountMajor: number, currency = STRIPE_CURRENCY): number {
+  const c = currency.toLowerCase();
+  if (ZERO_DECIMAL.has(c)) return Math.round(Number(amountMajor));
   return Math.round(Number(amountMajor) * 100);
 }
 
-export function fromMinorUnits(amountMinor: number): number {
+export function fromMinorUnits(amountMinor: number, currency = STRIPE_CURRENCY): number {
+  const c = currency.toLowerCase();
+  if (ZERO_DECIMAL.has(c)) return Math.round(Number(amountMinor));
   return Math.round(Number(amountMinor)) / 100;
+}
+
+export function setupFeeMajor(currency: string): number {
+  const c = (currency || STRIPE_CURRENCY).toLowerCase();
+  if (c === 'ngn') return Math.max(1, AUTO_DEBIT_SETUP_FEE_NGN);
+  // ~1 NGN equivalent in other currencies (at least Stripe-friendly floor of 1 minor unit major)
+  const ngnFee = Math.max(1, AUTO_DEBIT_SETUP_FEE_NGN);
+  const major = ngnFee / fxToNgn(c);
+  // Stripe often needs at least 0.5 USD equivalent; keep tiny but chargeable — use 1 minor unit as 0.01
+  if (c === 'usd' || c === 'eur' || c === 'gbp') return Math.max(0.5, Number(major.toFixed(2)));
+  return Math.max(1 / 100, Number(major.toFixed(2)));
 }
 
 export async function ensureStripeCustomer(params: {
@@ -53,9 +151,6 @@ export async function ensureStripeCustomer(params: {
   name?: string;
   metadata?: Record<string, string>;
 }): Promise<string> {
-  if (isStripeSimulateMode()) {
-    return params.customerId || `cus_sim_${Buffer.from(params.email).toString('hex').slice(0, 14)}`;
-  }
   const stripe = getStripe();
   if (params.customerId) {
     try {
@@ -73,26 +168,19 @@ export async function ensureStripeCustomer(params: {
   return customer.id;
 }
 
-/** One-time or first recurring fund — saves card when setup_future_usage is set */
 export async function createFundPaymentIntent(params: {
   amountMajor: number;
+  currency?: string;
   customerId: string;
   email: string;
   metadata: Record<string, string>;
   saveCard?: boolean;
-}): Promise<{ clientSecret: string; paymentIntentId: string; simulated?: boolean }> {
-  if (isStripeSimulateMode()) {
-    const paymentIntentId = `pi_sim_${Date.now()}`;
-    return {
-      clientSecret: `${paymentIntentId}_secret_sim`,
-      paymentIntentId,
-      simulated: true,
-    };
-  }
+}): Promise<{ clientSecret: string; paymentIntentId: string }> {
+  const currency = (params.currency || STRIPE_CURRENCY).toLowerCase();
   const stripe = getStripe();
   const intent = await stripe.paymentIntents.create({
-    amount: toMinorUnits(params.amountMajor),
-    currency: STRIPE_CURRENCY,
+    amount: toMinorUnits(params.amountMajor, currency),
+    currency,
     customer: params.customerId,
     receipt_email: params.email,
     automatic_payment_methods: { enabled: true },
@@ -104,10 +192,11 @@ export async function createFundPaymentIntent(params: {
 }
 
 /**
- * Hosted Checkout — best UX for card + 3DS. Saves PM when saveCard is true.
+ * Hosted Checkout — payment mode (fund / setup fee).
  */
 export async function createCheckoutSession(params: {
   amountMajor: number;
+  currency?: string;
   customerId: string;
   email: string;
   successUrl: string;
@@ -115,29 +204,18 @@ export async function createCheckoutSession(params: {
   metadata: Record<string, string>;
   saveCard?: boolean;
   productName?: string;
-}): Promise<{ sessionId: string; url: string | null; simulated?: boolean; paymentIntentId?: string }> {
-  if (isStripeSimulateMode()) {
-    const sessionId = `cs_sim_${Date.now()}`;
-    const paymentIntentId = `pi_sim_${Date.now()}`;
-    return {
-      sessionId,
-      url: null,
-      simulated: true,
-      paymentIntentId,
-    };
-  }
-
+}): Promise<{ sessionId: string; url: string | null; mode: 'payment' }> {
+  const currency = (params.currency || STRIPE_CURRENCY).toLowerCase();
   const stripe = getStripe();
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     customer: params.customerId,
-    customer_email: undefined,
     line_items: [
       {
         quantity: 1,
         price_data: {
-          currency: STRIPE_CURRENCY,
-          unit_amount: toMinorUnits(params.amountMajor),
+          currency,
+          unit_amount: toMinorUnits(params.amountMajor, currency),
           product_data: {
             name: params.productName || 'Sigma Wealth investment',
           },
@@ -154,84 +232,69 @@ export async function createCheckoutSession(params: {
     metadata: params.metadata,
   });
 
-  return { sessionId: session.id, url: session.url };
+  if (!session.url) throw new Error('Stripe Checkout did not return a URL');
+  return { sessionId: session.id, url: session.url, mode: 'payment' };
 }
 
 /**
- * Auto-debit enrollment: charge the minimum now (card is saved) and attach PM for future off-session charges.
+ * Save card for auto-debit with $0 charge (Setup mode) — use when investor already funded.
  */
-export async function createAutoDebitEnrollmentIntent(params: {
-  minChargeMajor: number;
+export async function createSetupCheckoutSession(params: {
   customerId: string;
   email: string;
+  successUrl: string;
+  cancelUrl: string;
   metadata: Record<string, string>;
-}): Promise<{ clientSecret: string; paymentIntentId: string; simulated?: boolean }> {
-  return createFundPaymentIntent({
-    amountMajor: params.minChargeMajor,
-    customerId: params.customerId,
-    email: params.email,
+  currency?: string;
+}): Promise<{ sessionId: string; url: string | null; mode: 'setup' }> {
+  const currency = (params.currency || STRIPE_CURRENCY).toLowerCase();
+  const stripe = getStripe();
+  const session = await stripe.checkout.sessions.create({
+    mode: 'setup',
+    customer: params.customerId,
+    currency,
+    payment_method_types: ['card'],
+    success_url: params.successUrl,
+    cancel_url: params.cancelUrl,
     metadata: params.metadata,
-    saveCard: true,
+    setup_intent_data: {
+      metadata: params.metadata,
+    },
   });
+  if (!session.url) throw new Error('Stripe Setup Checkout did not return a URL');
+  return { sessionId: session.id, url: session.url, mode: 'setup' };
 }
 
 export async function retrievePaymentIntent(paymentIntentId: string) {
-  if (isStripeSimulateMode() || paymentIntentId.startsWith('pi_sim_')) {
-    return {
-      id: paymentIntentId,
-      status: 'succeeded',
-      amount: 0,
-      currency: STRIPE_CURRENCY,
-      payment_method: `pm_sim_${paymentIntentId.slice(-8)}`,
-      customer: null,
-      metadata: {},
-      latest_charge: null,
-    } as unknown as Stripe.PaymentIntent;
-  }
   return getStripe().paymentIntents.retrieve(paymentIntentId, {
     expand: ['payment_method', 'latest_charge'],
   });
 }
 
 export async function retrieveCheckoutSession(sessionId: string) {
-  if (isStripeSimulateMode() || sessionId.startsWith('cs_sim_')) {
-    return {
-      id: sessionId,
-      payment_status: 'paid',
-      status: 'complete',
-      amount_total: 0,
-      currency: STRIPE_CURRENCY,
-      payment_intent: `pi_sim_${sessionId.slice(-10)}`,
-      customer: null,
-      metadata: {},
-    } as unknown as Stripe.Checkout.Session;
-  }
   return getStripe().checkout.sessions.retrieve(sessionId, {
-    expand: ['payment_intent', 'payment_intent.payment_method'],
+    expand: ['payment_intent', 'payment_intent.payment_method', 'setup_intent', 'setup_intent.payment_method'],
+  });
+}
+
+export async function retrieveSetupIntent(setupIntentId: string) {
+  return getStripe().setupIntents.retrieve(setupIntentId, {
+    expand: ['payment_method'],
   });
 }
 
 export async function chargeSavedPaymentMethodOffSession(params: {
   amountMajor: number;
+  currency?: string;
   customerId: string;
   paymentMethodId: string;
   metadata: Record<string, string>;
 }): Promise<Stripe.PaymentIntent> {
-  if (isStripeSimulateMode() || params.paymentMethodId.startsWith('pm_sim_')) {
-    return {
-      id: `pi_sim_ad_${Date.now()}`,
-      status: 'succeeded',
-      amount: toMinorUnits(params.amountMajor),
-      currency: STRIPE_CURRENCY,
-      payment_method: params.paymentMethodId,
-      customer: params.customerId,
-      metadata: params.metadata,
-    } as unknown as Stripe.PaymentIntent;
-  }
+  const currency = (params.currency || STRIPE_CURRENCY).toLowerCase();
   const stripe = getStripe();
   return stripe.paymentIntents.create({
-    amount: toMinorUnits(params.amountMajor),
-    currency: STRIPE_CURRENCY,
+    amount: toMinorUnits(params.amountMajor, currency),
+    currency,
     customer: params.customerId,
     payment_method: params.paymentMethodId,
     off_session: true,
@@ -264,15 +327,52 @@ export function cardBrandLast4FromPaymentMethod(pm: Stripe.PaymentMethod | strin
 }
 
 /**
- * Stripe cannot send to arbitrary Nigerian NUBAN accounts from a standard Stripe balance
- * without Connect / Global Payouts. We store destination details and:
- * - test mode / STRIPE_SIMULATE_PAYOUTS=1 → mark transfer successful for ops testing
- * - live with STRIPE_CONNECT_ENABLED → create a Transfer to connected account if stripe_account_id exists
- *
- * Destinations Stripe can pay (via Connect / Global Payouts):
- * - US: routing number + account number (ACH)
- * - NG: NUBAN + bank code (Global Payouts where enabled)
- * - EU/UK/others: IBAN (+ BIC/SWIFT)
+ * Create Stripe Connect Express account for investor payouts (bank in their country).
+ * Investor completes onboarding via Account Link (adds bank / debit card where supported).
+ */
+export async function createConnectExpressAccount(params: {
+  email: string;
+  country: string;
+  userId: string;
+}): Promise<string> {
+  const stripe = getStripe();
+  const country = String(params.country || 'NG').toUpperCase();
+  const account = await stripe.accounts.create({
+    type: 'express',
+    country,
+    email: params.email,
+    capabilities: {
+      transfers: { requested: true },
+    },
+    business_type: 'individual',
+    metadata: { userId: params.userId },
+    settings: {
+      payouts: {
+        schedule: { interval: 'manual' },
+      },
+    },
+  });
+  return account.id;
+}
+
+export async function createConnectOnboardingLink(params: {
+  accountId: string;
+  refreshUrl: string;
+  returnUrl: string;
+}): Promise<string> {
+  const stripe = getStripe();
+  const link = await stripe.accountLinks.create({
+    account: params.accountId,
+    refresh_url: params.refreshUrl,
+    return_url: params.returnUrl,
+    type: 'account_onboarding',
+  });
+  return link.url;
+}
+
+/**
+ * Pay investor via Stripe Connect Transfer to their connected account.
+ * Connected account then pays out to their bank (ACH / IBAN / local rails Stripe supports for that country).
  */
 export async function sendInvestorPayout(params: {
   amountMajor: number;
@@ -281,70 +381,62 @@ export async function sendInvestorPayout(params: {
   description: string;
   metadata?: Record<string, string>;
 }): Promise<{ success: boolean; transferId: string; simulated: boolean; message?: string }> {
-  const simulate =
-    isStripeTestMode() ||
-    isStripeSimulateMode() ||
-    process.env.STRIPE_SIMULATE_PAYOUTS === '1' ||
-    process.env.NODE_ENV !== 'production';
-
-  if (params.stripeAccountId && process.env.STRIPE_CONNECT_ENABLED === '1' && isStripeConfigured()) {
-    try {
-      const transfer = await getStripe().transfers.create({
-        amount: toMinorUnits(params.amountMajor),
-        currency: (params.currency || STRIPE_CURRENCY).toLowerCase(),
-        destination: params.stripeAccountId,
-        description: params.description.slice(0, 500),
-        metadata: params.metadata || {},
-      });
-      return { success: true, transferId: transfer.id, simulated: false };
-    } catch (err: any) {
-      if (!simulate) {
-        return {
-          success: false,
-          transferId: '',
-          simulated: false,
-          message: err.message || 'Stripe transfer failed',
-        };
-      }
-    }
-  }
-
-  if (simulate || !isStripeConfigured()) {
+  if (!isStripeConfigured()) {
     return {
-      success: true,
-      transferId: `sim_po_${Date.now()}`,
-      simulated: true,
-      message:
-        'Payout recorded. Live bank deposits require Stripe Connect / Global Payouts (US: routing+account; NG: NUBAN via Global Payouts; EU: IBAN).',
+      success: false,
+      transferId: '',
+      simulated: false,
+      message: 'Stripe is not configured for payouts.',
     };
   }
 
-  return {
-    success: false,
-    transferId: '',
-    simulated: false,
-    message:
-      'Live investor bank payouts need Stripe Connect or Global Payouts. Set STRIPE_CONNECT_ENABLED=1 with connected accounts, or STRIPE_SIMULATE_PAYOUTS=1 for ops simulation.',
-  };
+  if (!params.stripeAccountId) {
+    return {
+      success: false,
+      transferId: '',
+      simulated: false,
+      message:
+        'Investor must connect a Stripe payout account (Connect Express). Ask them to complete bank/card onboarding in the dashboard.',
+    };
+  }
+
+  try {
+    const currency = (params.currency || STRIPE_CURRENCY).toLowerCase();
+    const transfer = await getStripe().transfers.create({
+      amount: toMinorUnits(params.amountMajor, currency),
+      currency,
+      destination: params.stripeAccountId,
+      description: params.description.slice(0, 500),
+      metadata: params.metadata || {},
+    });
+    return { success: true, transferId: transfer.id, simulated: false };
+  } catch (err: any) {
+    return {
+      success: false,
+      transferId: '',
+      simulated: false,
+      message: err.message || 'Stripe transfer failed',
+    };
+  }
 }
 
 export type PayoutDestinationInput = {
   country: string;
   currency: string;
   accountHolderName: string;
-  /** US */
   routingNumber?: string;
   accountNumber?: string;
-  /** NG */
   bankCode?: string;
   bankName?: string;
-  /** EU / UK / others */
   iban?: string;
   bic?: string;
   stripeAccountId?: string | null;
 };
 
 export function validatePayoutDestination(d: PayoutDestinationInput): string | null {
+  // Prefer Connect account — bank fields optional once connected
+  if (d.stripeAccountId) return null;
+
   const country = String(d.country || '').toUpperCase();
   if (!d.accountHolderName?.trim()) return 'Account holder name is required';
   if (!country || country.length !== 2) return 'Select a valid country (ISO-2, e.g. NG, US, GB)';
@@ -361,11 +453,13 @@ export function validatePayoutDestination(d: PayoutDestinationInput): string | n
   }
   if (d.iban && d.iban.replace(/\s/g, '').length >= 15) return null;
   if (d.accountNumber && d.bic) return null;
-  return 'Provide IBAN (recommended) or account number + BIC/SWIFT for this country';
+  return 'Connect Stripe payouts, or provide IBAN / account+BIC for this country';
 }
 
 export function hasValidPayoutDestination(bank: any): boolean {
   if (!bank) return false;
+  if (bank.stripe_account_id && bank.connect_onboarding_complete) return true;
+  if (bank.stripe_account_id) return true; // account created; may still need onboarding
   const country = String(bank.country || 'NG').toUpperCase();
   if (country === 'US') {
     return Boolean(bank.routing_number && bank.account_number && bank.account_name);
@@ -374,4 +468,16 @@ export function hasValidPayoutDestination(bank: any): boolean {
     return Boolean(bank.account_number && (bank.bank_code || bank.bank_name) && bank.account_name);
   }
   return Boolean((bank.iban && String(bank.iban).replace(/\s/g, '').length >= 15) || (bank.account_number && bank.bic));
+}
+
+export function productionStripeHints() {
+  return {
+    webhookUrl: getStripeWebhookUrl(),
+    successUrlExample: getStripeSuccessUrl('REFERENCE'),
+    cancelUrl: getStripeCancelUrl(),
+    connectReturnUrl: `${getFrontendBaseUrl()}/dashboard?connect_return=1`,
+    connectRefreshUrl: `${getFrontendBaseUrl()}/dashboard?connect_refresh=1`,
+    note:
+      'In Stripe Dashboard → Developers → Webhooks, add the webhookUrl and listen for checkout.session.completed, payment_intent.succeeded, setup_intent.succeeded, account.updated. Use live keys (sk_live / pk_live) for production.',
+  };
 }

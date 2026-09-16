@@ -13,13 +13,15 @@ import {
 } from './lib/flutterwaveV4.js';
 import {
   isStripeConfigured,
-  isStripeSimulateMode,
   isStripeTestMode,
+  isStripeLiveMode,
   getStripePublishableKey,
   ensureStripeCustomer,
   createCheckoutSession,
+  createSetupCheckoutSession,
   retrieveCheckoutSession,
   retrievePaymentIntent,
+  retrieveSetupIntent,
   chargeSavedPaymentMethodOffSession,
   constructStripeWebhookEvent,
   cardBrandLast4FromPaymentMethod,
@@ -27,6 +29,19 @@ import {
   validatePayoutDestination,
   hasValidPayoutDestination,
   fromMinorUnits,
+  assertMinDepositMajor,
+  minDepositMajor,
+  setupFeeMajor,
+  createConnectExpressAccount,
+  createConnectOnboardingLink,
+  productionStripeHints,
+  getFrontendBaseUrl,
+  getStripeWebhookUrl,
+  getStripeSuccessUrl,
+  getStripeCancelUrl,
+  STRIPE_CURRENCY,
+  MIN_DEPOSIT_NGN,
+  MIN_DEPOSIT_USD,
 } from './lib/stripePayments.js';
 import { applySecurityMiddleware, productionErrorHandler } from './lib/security.js';
 import { sanitizeRequestBody } from './lib/sanitize.js';
@@ -41,7 +56,17 @@ const app = express();
 const PORT = Number(process.env.PORT || process.env.SIGMA_API_PORT || 4000);
 
 applySecurityMiddleware(app);
-app.use(express.json({ limit: '10mb' }));
+
+// Stripe webhooks need the raw body for signature verification
+app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
+app.use(express.json({
+  limit: '10mb',
+  verify: (req: any, _res, buf) => {
+    if (req.originalUrl?.startsWith('/api/stripe/webhook')) {
+      req.rawBody = buf;
+    }
+  },
+}));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(sanitizeRequestBody);
 
@@ -541,7 +566,7 @@ function notifyInvestor(userId: string, title: string, body: string, icon = 'ale
 }
 
 /** Weekly payouts: 25% of deposit each week for 4 weeks; week 4 also includes interest. */
-export const MIN_DEPOSIT_NGN = 100_000;
+export { MIN_DEPOSIT_NGN };
 const WEEKLY_SHARE = 0.25;
 type PayoutWeek = 1 | 2 | 3 | 4;
 
@@ -629,31 +654,43 @@ function addDaysIso(base: Date | string, days: number): string {
   return d.toISOString().split('T')[0];
 }
 
-function assertMinDeposit(amount: number): string | null {
-  if (!Number.isFinite(amount) || amount < MIN_DEPOSIT_NGN) {
-    return `Minimum deposit is NGN ${MIN_DEPOSIT_NGN.toLocaleString('en-NG')}. Amounts below this are not accepted.`;
-  }
-  return null;
+function assertMinDeposit(amount: number, currency = STRIPE_CURRENCY): string | null {
+  return assertMinDepositMajor(amount, currency);
 }
 
 // ---------------- PUBLIC & CONFIG API ----------------
 
 app.get('/api/config', (req: Request, res: Response) => {
+  const hints = productionStripeHints();
   res.json({
-    stripeConfigured: isStripeConfigured() || isStripeSimulateMode(),
-    stripeSimulate: isStripeSimulateMode(),
-    stripeTestMode: isStripeTestMode() || isStripeSimulateMode(),
+    stripeConfigured: isStripeConfigured(),
+    stripeLive: isStripeLiveMode(),
+    stripeSimulate: false,
+    stripeTestMode: isStripeTestMode(),
     stripePublishableKey: getStripePublishableKey(),
-    flutterwaveConfigured: isStripeConfigured() || isStripeSimulateMode(), // legacy alias → Stripe
-    flutterwaveSandbox: isStripeSimulateMode() || isStripeTestMode(),
+    stripeCurrency: STRIPE_CURRENCY,
+    flutterwaveConfigured: isStripeConfigured(),
+    flutterwaveSandbox: false,
     opayAccountName: OPAY_ACCOUNT_NAME,
     opayAccountNumber: OPAY_ACCOUNT_NUMBER,
     opayBankName: OPAY_BANK_NAME,
     isSupabaseLive: isLiveSupabase,
     minDepositNgn: MIN_DEPOSIT_NGN,
+    minDepositUsd: MIN_DEPOSIT_USD,
+    minDepositByCurrency: {
+      ngn: minDepositMajor('ngn'),
+      usd: minDepositMajor('usd'),
+      eur: minDepositMajor('eur'),
+      gbp: minDepositMajor('gbp'),
+    },
+    autoDebitSetupFeeNgn: Number(process.env.AUTO_DEBIT_SETUP_FEE_NGN || 1),
     referralRate: 0.05,
-    payoutHint:
-      'Stripe pays investor banks via Connect / Global Payouts (US: routing+account, NG: NUBAN, EU: IBAN). Without Connect, payouts are recorded/simulated for ops.',
+    frontendUrl: getFrontendBaseUrl(),
+    stripeWebhookUrl: getStripeWebhookUrl(),
+    stripeSuccessUrlTemplate: hints.successUrlExample,
+    stripeCancelUrl: hints.cancelUrl,
+    stripeConnectReturnUrl: hints.connectReturnUrl,
+    payoutHint: hints.note,
   });
 });
 
@@ -1374,8 +1411,8 @@ app.post('/api/investor/auto-debit-plan', (req: Request, res: Response) => {
 
 /** Charge due monthly auto-debit subscriptions via Stripe off-session */
 app.post('/api/investor/process-auto-debits', async (_req: Request, res: Response) => {
-  if (!isStripeConfigured() && !isStripeSimulateMode()) {
-    return res.status(503).json({ message: 'Stripe is not configured.' });
+  if (!isStripeConfigured()) {
+    return res.status(503).json({ message: 'Stripe is not configured. Set STRIPE_SECRET_KEY.' });
   }
 
   const today = new Date().toISOString().split('T')[0];
@@ -1592,6 +1629,7 @@ async function creditVerifiedPayment(params: {
   cardToken?: string | null;
   customerId?: string | null;
   provider?: 'stripe' | 'flutterwave';
+  creditInvestment?: boolean;
 }) {
   const {
     userId,
@@ -1608,6 +1646,7 @@ async function creditVerifiedPayment(params: {
     cardToken = null,
     customerId = null,
     provider = 'stripe',
+    creditInvestment = true,
   } = params;
 
   const verifiedCustomerEmail = (email || '').toLowerCase().trim();
@@ -1638,6 +1677,7 @@ async function creditVerifiedPayment(params: {
 
   const effectiveUserId = profile.id;
   const targetPhase = phase || profile.current_phase || 'None';
+  const shouldCredit = creditInvestment !== false && Number(verifiedAmount) > 0;
 
   const existingPayment = store.payments.find(
     (p) =>
@@ -1647,7 +1687,7 @@ async function creditVerifiedPayment(params: {
 
   let payment: any = existingPayment;
 
-  if (!existingPayment) {
+  if (!existingPayment && shouldCredit) {
     payment = {
       id: `pay-${Date.now()}`,
       user_id: effectiveUserId,
@@ -1675,6 +1715,23 @@ async function creditVerifiedPayment(params: {
       store.profiles.set(userId, profile);
     }
     creditReferralCommission(profile, verifiedAmount);
+  } else if (!existingPayment && !shouldCredit) {
+    payment = {
+      id: `pay-setup-${Date.now()}`,
+      user_id: effectiveUserId,
+      user_email: profile.email || verifiedCustomerEmail,
+      amount: Number(verifiedAmount) || 0,
+      method: 'card',
+      flutterwave_tx_ref: txRef,
+      flutterwave_ref: flwRef,
+      stripe_tx_ref: txRef,
+      stripe_payment_intent_id: flwRef,
+      reference: txRef || flwRef,
+      status: 'successful',
+      notes: `Stripe auto-debit card setup (${targetPhase}) — not credited as investment`,
+      created_at: new Date().toISOString(),
+    };
+    store.payments.unshift(payment);
   }
 
   if (cardToken) {
@@ -1696,7 +1753,7 @@ async function creditVerifiedPayment(params: {
     }
   }
 
-  const planAmount = Number(monthlyPlanAmount || verifiedAmount) || 0;
+  const planAmount = Number(monthlyPlanAmount) || (typeof shouldCredit !== "undefined" && shouldCredit ? Number(verifiedAmount) : 0) || 0;
   if (isRecurringPlan && planAmount > 0) {
     const now = new Date();
     const nextCharge = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()).toISOString().split('T')[0];
@@ -1723,7 +1780,7 @@ async function creditVerifiedPayment(params: {
   const now = new Date();
 
   if (investment) {
-    if (!existingPayment) {
+    if (!existingPayment && shouldCredit) {
       investment.amount = Number(investment.amount) + verifiedAmount;
     }
     investment.phase = targetPhase;
@@ -1733,7 +1790,7 @@ async function creditVerifiedPayment(params: {
     if (!investment.next_payment_date) {
       investment.next_payment_date = addDaysIso(now, 7);
     }
-  } else {
+  } else if (shouldCredit) {
     investment = {
       id: `inv-${Date.now()}`,
       user_id: effectiveUserId,
@@ -1749,9 +1806,11 @@ async function creditVerifiedPayment(params: {
       created_at: now.toISOString(),
     };
   }
-  store.investments.set(effectiveUserId, investment);
-  if (userId && userId !== effectiveUserId) {
-    store.investments.set(userId, investment);
+  if (investment) {
+    store.investments.set(effectiveUserId, investment);
+    if (userId && userId !== effectiveUserId) {
+      store.investments.set(userId, investment);
+    }
   }
 
   if (isLiveSupabase && supabaseAdmin && isValidUUID(effectiveUserId)) {
@@ -1834,6 +1893,20 @@ async function creditVerifiedPayment(params: {
 
 // ---------------- STRIPE PAYMENTS (Flutterwave paths kept as aliases) ----------------
 
+function investorAlreadyFunded(userId?: string, email?: string): boolean {
+  const profile = findCanonicalProfile(userId, email);
+  if (profile && Number(profile.total_invested || 0) > 0) return true;
+  const uid = profile?.id || userId;
+  if (!uid) return false;
+  const pays = store.payments.filter(
+    (p) =>
+      (p.user_id === uid || p.user_email === email) &&
+      p.status === 'successful' &&
+      Number(p.amount || 0) > 0
+  );
+  return pays.length > 0;
+}
+
 async function handleStripeInitiate(req: Request, res: Response) {
   const {
     userId,
@@ -1844,29 +1917,83 @@ async function handleStripeInitiate(req: Request, res: Response) {
     isRecurringPlan,
     monthlyPlanAmount,
     saveCard,
+    currency: bodyCurrency,
+    setupMode, // force setup-only
   } = req.body || {};
 
-  if (!email || !amount || Number(amount) <= 0) {
-    return res.status(400).json({ message: 'Valid email and amount are required.' });
+  if (!email) {
+    return res.status(400).json({ message: 'Valid email is required.' });
+  }
+  if (!isStripeConfigured()) {
+    return res.status(503).json({
+      message: 'Stripe is not configured. Set STRIPE_SECRET_KEY and NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY (live keys for production).',
+      webhookUrl: getStripeWebhookUrl(),
+    });
   }
 
+  const currency = String(bodyCurrency || STRIPE_CURRENCY).toLowerCase();
   const isRecurring = Boolean(isRecurringPlan);
-  const chargeAmount = Number(amount);
-  const planAmount = Number(monthlyPlanAmount || amount);
-  // Auto-debit enrollment: charge minimum to save card; monthly amount stored separately
-  const effectiveCharge = isRecurring ? MIN_DEPOSIT_NGN : chargeAmount;
-  const minErr = assertMinDeposit(isRecurring ? planAmount : chargeAmount);
-  if (minErr) return res.status(400).json({ message: minErr });
-  if (isRecurring && planAmount < MIN_DEPOSIT_NGN) {
-    return res.status(400).json({ message: `Monthly auto-debit must be at least ₦${MIN_DEPOSIT_NGN.toLocaleString()}` });
+  const planAmount = Number(monthlyPlanAmount || amount || 0);
+  const chargeAmount = Number(amount || 0);
+  const alreadyFunded = investorAlreadyFunded(userId, email);
+  const card = userId ? store.card_details.get(userId) : null;
+  const hasCard = Boolean(card?.stripe_payment_method_id || card?.flutterwave_card_token);
+
+  // Auto-debit with card already on file → just save plan (no charge)
+  if (isRecurring && hasCard && planAmount > 0) {
+    const minErr = assertMinDeposit(planAmount, currency);
+    if (minErr) return res.status(400).json({ message: minErr });
+    // fall through to auto-debit-plan endpoint behavior inline
+    const now = new Date();
+    const nextCharge = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()).toISOString().split('T')[0];
+    const reminder = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate() - 1).toISOString().split('T')[0];
+    const plan = {
+      user_id: userId,
+      amount: planAmount,
+      currency,
+      active: true,
+      next_charge_date: nextCharge,
+      reminder_date: reminder,
+      last_reminder_sent: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    store.auto_debit_plans.set(userId, plan);
+    return res.json({
+      success: true,
+      completed: true,
+      redirectUrl: null,
+      amountCharged: 0,
+      monthlyPlanAmount: planAmount,
+      message: 'Auto-debit activated on your saved card. No extra charge.',
+      plan,
+    });
   }
 
-  if (!isStripeConfigured() && !isStripeSimulateMode()) {
-    return res.status(503).json({ message: 'Stripe is not configured. Set STRIPE_SECRET_KEY.' });
+  if (isRecurring) {
+    const minErr = assertMinDeposit(planAmount, currency);
+    if (minErr) return res.status(400).json({ message: minErr });
+  } else {
+    if (!chargeAmount || chargeAmount <= 0) {
+      return res.status(400).json({ message: 'Valid amount is required.' });
+    }
+    const minErr = assertMinDeposit(chargeAmount, currency);
+    if (minErr) return res.status(400).json({ message: minErr });
   }
+
+  // Already funded + setting auto-debit → SetupIntent (₦0) or tiny setup fee — never re-charge 100k
+  const useSetupOnly =
+    Boolean(setupMode) ||
+    (isRecurring && alreadyFunded);
+
+  const setupFee = setupFeeMajor(currency);
+  const effectiveCharge = useSetupOnly
+    ? (process.env.AUTO_DEBIT_USE_SETUP_INTENT === '0' ? setupFee : 0)
+    : isRecurring
+      ? minDepositMajor(currency) // first-time auto-debit without prior fund: charge platform minimum once
+      : chargeAmount;
 
   const reference = `SIGMA${Date.now()}${crypto.randomUUID().replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)}`;
-  const frontendUrl = (process.env.FRONTEND_URL || process.env.APP_URL || 'https://sigmawealthsolution.vercel.app').replace(/\/$/, '');
 
   try {
     const customerId = await ensureStripeCustomer({
@@ -1883,23 +2010,57 @@ async function handleStripeInitiate(req: Request, res: Response) {
       isRecurringPlan: isRecurring ? 'true' : 'false',
       monthlyPlanAmount: String(isRecurring ? planAmount : ''),
       chargeAmount: String(effectiveCharge),
+      currency,
+      setupOnly: useSetupOnly ? 'true' : 'false',
+      creditInvestment: useSetupOnly ? 'false' : 'true',
     };
 
-    const session = await createCheckoutSession({
-      amountMajor: effectiveCharge,
-      customerId,
-      email: String(email).trim(),
-      successUrl: `${frontendUrl}/dashboard?stripe_return=1&reference=${encodeURIComponent(reference)}&session_id={CHECKOUT_SESSION_ID}`,
-      cancelUrl: `${frontendUrl}/dashboard?stripe_cancel=1`,
-      metadata,
-      saveCard: isRecurring || Boolean(saveCard),
-      productName: isRecurring
-        ? `Auto-debit setup (min charge ₦${effectiveCharge.toLocaleString()})`
-        : `Investment deposit ₦${effectiveCharge.toLocaleString()}`,
-    });
+    const successUrl = getStripeSuccessUrl(reference);
+    const cancelUrl = getStripeCancelUrl();
+
+    let session: { sessionId: string; url: string | null; mode: string };
+
+    if (useSetupOnly && process.env.AUTO_DEBIT_USE_SETUP_INTENT !== '0') {
+      // $0 card save — preferred when they already invested
+      session = await createSetupCheckoutSession({
+        customerId,
+        email: String(email).trim(),
+        successUrl,
+        cancelUrl,
+        metadata,
+        currency,
+      });
+    } else if (useSetupOnly) {
+      // Tiny fee path (~₦1) if SetupIntent disabled
+      session = await createCheckoutSession({
+        amountMajor: setupFee,
+        currency,
+        customerId,
+        email: String(email).trim(),
+        successUrl,
+        cancelUrl,
+        metadata: { ...metadata, chargeAmount: String(setupFee), creditInvestment: 'false' },
+        saveCard: true,
+        productName: `Auto-debit card setup fee (${setupFee} ${currency.toUpperCase()})`,
+      });
+    } else {
+      session = await createCheckoutSession({
+        amountMajor: effectiveCharge,
+        currency,
+        customerId,
+        email: String(email).trim(),
+        successUrl,
+        cancelUrl,
+        metadata,
+        saveCard: isRecurring || Boolean(saveCard),
+        productName: isRecurring
+          ? `Auto-debit enrollment (${effectiveCharge.toLocaleString()} ${currency.toUpperCase()})`
+          : `Investment deposit ${effectiveCharge.toLocaleString()} ${currency.toUpperCase()}`,
+      });
+    }
 
     pendingCharges.set(reference, {
-      chargeId: session.paymentIntentId || session.sessionId,
+      chargeId: session.sessionId,
       sessionId: session.sessionId,
       userId: userId || '',
       amount: effectiveCharge,
@@ -1909,46 +2070,16 @@ async function handleStripeInitiate(req: Request, res: Response) {
       email: String(email).trim(),
       name: name || 'Investor',
       customerId,
-      saveCard: isRecurring || Boolean(saveCard),
+      saveCard: true,
+      currency,
+      setupOnly: useSetupOnly,
+      creditInvestment: !useSetupOnly,
+      mode: session.mode,
     });
-
-    // Simulate mode: complete immediately (no Stripe redirect)
-    if (session.simulated) {
-      const credited = await creditVerifiedPayment({
-        userId: userId || '',
-        email: String(email).trim(),
-        name: name || 'Investor',
-        verifiedAmount: effectiveCharge,
-        phase: phase || 'None',
-        isRecurringPlan: isRecurring,
-        monthlyPlanAmount: isRecurring ? planAmount : undefined,
-        txRef: reference,
-        flwRef: session.paymentIntentId || session.sessionId,
-        cardToken: `pm_sim_${reference.slice(-10)}`,
-        customerId,
-        cardLast4: '4242',
-        cardBrand: 'visa',
-        provider: 'stripe',
-      });
-      return res.json({
-        success: true,
-        chargeId: session.paymentIntentId || session.sessionId,
-        sessionId: session.sessionId,
-        reference,
-        status: 'succeeded',
-        redirectUrl: null,
-        completed: true,
-        simulated: true,
-        payment: credited.payment,
-        investment: credited.investment,
-        amountCharged: effectiveCharge,
-        monthlyPlanAmount: isRecurring ? planAmount : null,
-      });
-    }
 
     return res.json({
       success: true,
-      chargeId: session.paymentIntentId || session.sessionId,
+      chargeId: session.sessionId,
       sessionId: session.sessionId,
       reference,
       status: 'pending',
@@ -1956,6 +2087,11 @@ async function handleStripeInitiate(req: Request, res: Response) {
       completed: false,
       amountCharged: effectiveCharge,
       monthlyPlanAmount: isRecurring ? planAmount : null,
+      setupOnly: useSetupOnly,
+      mode: session.mode,
+      webhookUrl: getStripeWebhookUrl(),
+      successUrl,
+      cancelUrl,
     });
   } catch (err: any) {
     console.error('Stripe initiate error:', err);
@@ -1982,13 +2118,16 @@ async function handleStripeVerify(req: Request, res: Response) {
   if (!userId && !email) {
     return res.status(400).json({ message: 'Missing user identification parameters' });
   }
+  if (!isStripeConfigured()) {
+    return res.status(503).json({ message: 'Stripe is not configured.' });
+  }
 
   const pending = txRef ? pendingCharges.get(txRef) : undefined;
   const resolvedSessionId = sessionId || (String(chargeId || '').startsWith('cs_') ? chargeId : null);
   const resolvedPiId = transactionId || flwRef || (!resolvedSessionId ? chargeId || pending?.chargeId : null);
 
   let verifiedAmount = Number(amount) || pending?.amount || 0;
-  let resolvedTxRef = txRef || pending?.reference || `SIGMA_${Date.now()}`;
+  let resolvedTxRef = txRef || `SIGMA_${Date.now()}`;
   let resolvedPi = String(resolvedPiId || '');
   let cardLast4 = '****';
   let cardBrand = 'Card';
@@ -1996,82 +2135,91 @@ async function handleStripeVerify(req: Request, res: Response) {
   let customerId: string | null = pending?.customerId || null;
   let recurring = Boolean(isRecurringPlan ?? pending?.isRecurringPlan);
   let planAmt = Number(monthlyPlanAmount || pending?.monthlyPlanAmount || 0) || undefined;
-
-  if (!isStripeConfigured() && !isStripeSimulateMode()) {
-    return res.status(503).json({ message: 'Stripe is not configured.' });
-  }
+  let creditInvestment = pending?.creditInvestment !== false && pending?.setupOnly !== true;
+  let currency = pending?.currency || STRIPE_CURRENCY;
 
   try {
     if (resolvedSessionId) {
       const session = await retrieveCheckoutSession(String(resolvedSessionId));
-      if (session.payment_status !== 'paid' && session.status !== 'complete' && !String(resolvedSessionId).startsWith('cs_sim_')) {
-        return res.status(400).json({
-          message: `Payment not completed. Current status: ${session.payment_status || session.status || 'unknown'}`,
-        });
-      }
-      if (session.amount_total) verifiedAmount = fromMinorUnits(session.amount_total) || verifiedAmount;
       const meta = (session.metadata || {}) as Record<string, string>;
       resolvedTxRef = meta.reference || resolvedTxRef;
       recurring = meta.isRecurringPlan === 'true' || recurring;
       if (meta.monthlyPlanAmount) planAmt = Number(meta.monthlyPlanAmount) || planAmt;
-      if (meta.chargeAmount) verifiedAmount = Number(meta.chargeAmount) || verifiedAmount;
+      if (meta.currency) currency = meta.currency;
+      creditInvestment = meta.creditInvestment !== 'false' && meta.setupOnly !== 'true';
       customerId = (typeof session.customer === 'string' ? session.customer : (session.customer as any)?.id) || customerId;
 
-      const piRaw = session.payment_intent;
-      if (typeof piRaw === 'string') {
-        resolvedPi = piRaw;
-        const intent = await retrievePaymentIntent(piRaw);
-        const cardInfo = cardBrandLast4FromPaymentMethod(intent.payment_method as any);
-        cardLast4 = cardInfo.last4;
-        cardBrand = cardInfo.brand;
-        cardToken = cardInfo.paymentMethodId;
-        if (!verifiedAmount && intent.amount) verifiedAmount = fromMinorUnits(intent.amount);
-      } else if (piRaw && typeof piRaw === 'object') {
-        resolvedPi = (piRaw as any).id;
-        const cardInfo = cardBrandLast4FromPaymentMethod((piRaw as any).payment_method);
-        cardLast4 = cardInfo.last4;
-        cardBrand = cardInfo.brand;
-        cardToken = cardInfo.paymentMethodId;
-        if (!verifiedAmount && (piRaw as any).amount) verifiedAmount = fromMinorUnits((piRaw as any).amount);
+      if (session.mode === 'setup') {
+        if (session.status !== 'complete') {
+          return res.status(400).json({ message: `Card setup not complete. Status: ${session.status}` });
+        }
+        verifiedAmount = 0;
+        creditInvestment = false;
+        const siRaw = session.setup_intent;
+        let setupIntentId = typeof siRaw === 'string' ? siRaw : (siRaw as any)?.id;
+        if (setupIntentId) {
+          const si = typeof siRaw === 'object' && siRaw ? (siRaw as any) : await retrieveSetupIntent(setupIntentId);
+          const cardInfo = cardBrandLast4FromPaymentMethod(si.payment_method as any);
+          cardLast4 = cardInfo.last4;
+          cardBrand = cardInfo.brand;
+          cardToken = cardInfo.paymentMethodId;
+          resolvedPi = String(si.id || setupIntentId);
+        }
+      } else {
+        if (session.payment_status !== 'paid' && session.status !== 'complete') {
+          return res.status(400).json({
+            message: `Payment not completed. Current status: ${session.payment_status || session.status || 'unknown'}`,
+          });
+        }
+        if (session.amount_total) {
+          verifiedAmount = fromMinorUnits(session.amount_total, currency) || verifiedAmount;
+        }
+        if (meta.chargeAmount) verifiedAmount = Number(meta.chargeAmount) || verifiedAmount;
+
+        const piRaw = session.payment_intent;
+        if (typeof piRaw === 'string') {
+          resolvedPi = piRaw;
+          const intent = await retrievePaymentIntent(piRaw);
+          const cardInfo = cardBrandLast4FromPaymentMethod(intent.payment_method as any);
+          cardLast4 = cardInfo.last4;
+          cardBrand = cardInfo.brand;
+          cardToken = cardInfo.paymentMethodId;
+        } else if (piRaw && typeof piRaw === 'object') {
+          resolvedPi = (piRaw as any).id;
+          const cardInfo = cardBrandLast4FromPaymentMethod((piRaw as any).payment_method);
+          cardLast4 = cardInfo.last4;
+          cardBrand = cardInfo.brand;
+          cardToken = cardInfo.paymentMethodId;
+        }
       }
     } else if (resolvedPi) {
       const intent = await retrievePaymentIntent(String(resolvedPi));
-      if (!isChargeSucceeded(intent.status) && !String(resolvedPi).startsWith('pi_sim_')) {
+      if (!isChargeSucceeded(intent.status)) {
         return res.status(400).json({ message: `Payment not completed. Current status: ${intent.status || 'unknown'}` });
       }
-      if (intent.amount) verifiedAmount = fromMinorUnits(intent.amount) || verifiedAmount;
+      if (intent.amount) verifiedAmount = fromMinorUnits(intent.amount, currency) || verifiedAmount;
       const meta = (intent.metadata || {}) as Record<string, string>;
       resolvedTxRef = meta.reference || resolvedTxRef;
       recurring = meta.isRecurringPlan === 'true' || recurring;
       if (meta.monthlyPlanAmount) planAmt = Number(meta.monthlyPlanAmount) || planAmt;
+      creditInvestment = meta.creditInvestment !== 'false' && meta.setupOnly !== 'true';
       const cardInfo = cardBrandLast4FromPaymentMethod(intent.payment_method as any);
       cardLast4 = cardInfo.last4;
       cardBrand = cardInfo.brand;
       cardToken = cardInfo.paymentMethodId;
       customerId = (typeof intent.customer === 'string' ? intent.customer : null) || customerId;
-    } else if (pending && isStripeSimulateMode()) {
-      verifiedAmount = pending.amount;
-      resolvedPi = pending.chargeId;
-      cardToken = `pm_sim_${String(pending.chargeId).slice(-8)}`;
-      cardLast4 = '4242';
-      cardBrand = 'visa';
-      customerId = pending.customerId;
     } else {
-      return res.status(400).json({ message: 'sessionId or payment intent id is required to verify payment.' });
+      return res.status(400).json({ message: 'sessionId is required to verify Stripe Checkout.' });
     }
   } catch (err: any) {
     return res.status(502).json({ message: err.message || 'Failed to verify charge with Stripe.' });
-  }
-
-  if (recurring && !cardToken && pending?.saveCard) {
-    cardToken = `pm_pending_${resolvedTxRef.slice(-8)}`;
   }
 
   const result = await creditVerifiedPayment({
     userId: userId || pending?.userId,
     email: email || pending?.email,
     name: name || pending?.name,
-    verifiedAmount: verifiedAmount || pending?.amount || 0,
+    verifiedAmount: creditInvestment ? verifiedAmount || pending?.amount || 0 : 0,
     phase: phase || pending?.phase,
     isRecurringPlan: recurring,
     monthlyPlanAmount: planAmt,
@@ -2082,11 +2230,16 @@ async function handleStripeVerify(req: Request, res: Response) {
     cardToken,
     customerId,
     provider: 'stripe',
+    creditInvestment,
   });
 
   res.json({
     success: true,
-    message: result.existingPayment ? 'Payment already recorded' : 'Payment verified and investment credited successfully',
+    message: result.existingPayment
+      ? 'Payment already recorded'
+      : creditInvestment
+        ? 'Payment verified and investment credited successfully'
+        : 'Card saved and auto-debit plan activated',
     payment: result.payment,
     investment: result.investment,
     profile: result.profile,
@@ -2113,15 +2266,24 @@ app.get('/api/flutterwave/callback', (req: Request, res: Response) => {
 
 app.post('/api/stripe/webhook', async (req: Request, res: Response) => {
   try {
-    let event: any = req.body;
+    if (!isStripeConfigured()) {
+      return res.status(503).json({ status: 'error', message: 'Stripe not configured' });
+    }
+
     const sig = req.headers['stripe-signature'];
-    if (sig && process.env.STRIPE_WEBHOOK_SECRET && isStripeConfigured()) {
-      try {
-        const raw = (req as any).rawBody || JSON.stringify(req.body);
-        event = constructStripeWebhookEvent(raw, String(sig));
-      } catch (err: any) {
-        console.warn('Stripe webhook signature warning:', err.message);
-      }
+    let event: any;
+    const rawBody = Buffer.isBuffer(req.body)
+      ? req.body
+      : (req as any).rawBody || Buffer.from(typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {}));
+
+    if (!sig || !process.env.STRIPE_WEBHOOK_SECRET) {
+      return res.status(400).json({ status: 'error', message: 'Missing Stripe signature or STRIPE_WEBHOOK_SECRET' });
+    }
+    try {
+      event = constructStripeWebhookEvent(rawBody, String(sig));
+    } catch (err: any) {
+      console.error('Stripe webhook signature failed:', err.message);
+      return res.status(400).json({ status: 'error', message: err.message });
     }
 
     const type = event?.type;
@@ -2130,40 +2292,64 @@ app.post('/api/stripe/webhook', async (req: Request, res: Response) => {
       return res.status(200).json({ status: 'ignored' });
     }
 
-    if (type === 'checkout.session.completed' && (data.payment_status === 'paid' || data.status === 'complete')) {
+    if (type === 'checkout.session.completed') {
       const meta = data.metadata || {};
       const txRef = meta.reference || data.id;
       const pending = txRef ? pendingCharges.get(txRef) : undefined;
+      const creditInvestment = meta.creditInvestment !== 'false' && meta.setupOnly !== 'true' && data.mode !== 'setup';
       let cardToken: string | null = null;
       let cardLast4 = '****';
       let cardBrand = 'Card';
-      let piId = typeof data.payment_intent === 'string' ? data.payment_intent : data.payment_intent?.id;
-      if (piId && isStripeConfigured()) {
-        try {
-          const intent = await retrievePaymentIntent(piId);
-          const info = cardBrandLast4FromPaymentMethod(intent.payment_method as any);
+      let refId = data.id;
+
+      if (data.mode === 'setup') {
+        const siRaw = data.setup_intent;
+        const setupIntentId = typeof siRaw === 'string' ? siRaw : siRaw?.id;
+        if (setupIntentId) {
+          const si = await retrieveSetupIntent(setupIntentId);
+          const info = cardBrandLast4FromPaymentMethod(si.payment_method as any);
           cardToken = info.paymentMethodId;
           cardLast4 = info.last4;
           cardBrand = info.brand;
-        } catch {
-          /* ignore */
+          refId = si.id;
+        }
+      } else {
+        if (data.payment_status !== 'paid' && data.status !== 'complete') {
+          return res.status(200).json({ status: 'ignored', message: 'not paid' });
+        }
+        const piId = typeof data.payment_intent === 'string' ? data.payment_intent : data.payment_intent?.id;
+        refId = piId || data.id;
+        if (piId) {
+          try {
+            const intent = await retrievePaymentIntent(piId);
+            const info = cardBrandLast4FromPaymentMethod(intent.payment_method as any);
+            cardToken = info.paymentMethodId;
+            cardLast4 = info.last4;
+            cardBrand = info.brand;
+          } catch {
+            /* ignore */
+          }
         }
       }
+
       await creditVerifiedPayment({
         userId: meta.userId || pending?.userId,
         email: data.customer_details?.email || pending?.email,
         name: data.customer_details?.name || pending?.name,
-        verifiedAmount: data.amount_total ? fromMinorUnits(data.amount_total) : Number(meta.chargeAmount || pending?.amount || 0),
+        verifiedAmount: creditInvestment
+          ? (data.amount_total ? fromMinorUnits(data.amount_total, meta.currency || STRIPE_CURRENCY) : Number(meta.chargeAmount || pending?.amount || 0))
+          : 0,
         phase: meta.phase || pending?.phase,
         isRecurringPlan: meta.isRecurringPlan === 'true' || pending?.isRecurringPlan,
         monthlyPlanAmount: meta.monthlyPlanAmount ? Number(meta.monthlyPlanAmount) : pending?.monthlyPlanAmount,
         txRef,
-        flwRef: String(piId || data.id),
+        flwRef: String(refId),
         cardLast4,
         cardBrand,
         cardToken,
         customerId: typeof data.customer === 'string' ? data.customer : pending?.customerId || null,
         provider: 'stripe',
+        creditInvestment,
       });
     }
 
@@ -2171,12 +2357,15 @@ app.post('/api/stripe/webhook', async (req: Request, res: Response) => {
       const meta = data.metadata || {};
       const txRef = meta.reference || data.id;
       const pending = txRef ? pendingCharges.get(txRef) : undefined;
+      const creditInvestment = meta.creditInvestment !== 'false' && meta.setupOnly !== 'true';
       const info = cardBrandLast4FromPaymentMethod(data.payment_method);
       await creditVerifiedPayment({
         userId: meta.userId || pending?.userId,
         email: pending?.email,
         name: pending?.name,
-        verifiedAmount: data.amount ? fromMinorUnits(data.amount) : Number(meta.chargeAmount || pending?.amount || 0),
+        verifiedAmount: creditInvestment
+          ? (data.amount ? fromMinorUnits(data.amount, data.currency || STRIPE_CURRENCY) : Number(meta.chargeAmount || pending?.amount || 0))
+          : 0,
         phase: meta.phase || pending?.phase,
         isRecurringPlan: meta.isRecurringPlan === 'true' || pending?.isRecurringPlan,
         monthlyPlanAmount: meta.monthlyPlanAmount ? Number(meta.monthlyPlanAmount) : pending?.monthlyPlanAmount,
@@ -2187,7 +2376,43 @@ app.post('/api/stripe/webhook', async (req: Request, res: Response) => {
         cardToken: info.paymentMethodId,
         customerId: typeof data.customer === 'string' ? data.customer : pending?.customerId || null,
         provider: 'stripe',
+        creditInvestment,
       });
+    }
+
+    if (type === 'setup_intent.succeeded') {
+      const meta = data.metadata || {};
+      const txRef = meta.reference || data.id;
+      const pending = txRef ? pendingCharges.get(txRef) : undefined;
+      const info = cardBrandLast4FromPaymentMethod(data.payment_method);
+      await creditVerifiedPayment({
+        userId: meta.userId || pending?.userId,
+        email: pending?.email,
+        name: pending?.name,
+        verifiedAmount: 0,
+        phase: meta.phase || pending?.phase,
+        isRecurringPlan: true,
+        monthlyPlanAmount: meta.monthlyPlanAmount ? Number(meta.monthlyPlanAmount) : pending?.monthlyPlanAmount,
+        txRef,
+        flwRef: String(data.id),
+        cardLast4: info.last4,
+        cardBrand: info.brand,
+        cardToken: info.paymentMethodId,
+        customerId: typeof data.customer === 'string' ? data.customer : pending?.customerId || null,
+        provider: 'stripe',
+        creditInvestment: false,
+      });
+    }
+
+    if (type === 'account.updated' && data.id) {
+      for (const [uid, bank] of store.bank_details.entries()) {
+        if (bank?.stripe_account_id === data.id) {
+          bank.connect_onboarding_complete = Boolean(data.charges_enabled || data.payouts_enabled);
+          bank.payouts_enabled = Boolean(data.payouts_enabled);
+          bank.updated_at = new Date().toISOString();
+          store.bank_details.set(uid, bank);
+        }
+      }
     }
 
     return res.status(200).json({ status: 'success' });
@@ -2220,6 +2445,70 @@ app.post('/api/flutterwave/sync', async (_req: Request, res: Response) => {
 
 app.post('/api/stripe/verify', handleStripeVerify);
 app.post('/api/flutterwave/verify', handleStripeVerify);
+
+/** Stripe Connect Express — investor connects bank/card for payouts in their country */
+app.post('/api/investor/connect/onboard', async (req: Request, res: Response) => {
+  const { userId, email, country = 'NG', accountName } = req.body || {};
+  if (!userId || !email) {
+    return res.status(400).json({ message: 'userId and email are required' });
+  }
+  if (!isStripeConfigured()) {
+    return res.status(503).json({ message: 'Stripe is not configured.' });
+  }
+
+  try {
+    const destCountry = String(country || 'NG').toUpperCase();
+    let bank = store.bank_details.get(userId) || {};
+    let accountId = bank.stripe_account_id;
+
+    if (!accountId) {
+      accountId = await createConnectExpressAccount({
+        email: String(email).trim(),
+        country: destCountry,
+        userId: String(userId),
+      });
+    }
+
+    const frontend = getFrontendBaseUrl();
+    const url = await createConnectOnboardingLink({
+      accountId,
+      refreshUrl: `${frontend}/dashboard?connect_refresh=1`,
+      returnUrl: `${frontend}/dashboard?connect_return=1`,
+    });
+
+    const record = {
+      ...bank,
+      user_id: userId,
+      country: destCountry,
+      currency: destCountry === 'US' ? 'USD' : destCountry === 'NG' ? 'NGN' : bank.currency || 'EUR',
+      account_name: accountName || bank.account_name || 'Investor',
+      stripe_account_id: accountId,
+      connect_onboarding_complete: Boolean(bank.connect_onboarding_complete),
+      updated_at: new Date().toISOString(),
+      created_at: bank.created_at || new Date().toISOString(),
+    };
+    store.bank_details.set(userId, record);
+
+    return res.json({
+      success: true,
+      stripeAccountId: accountId,
+      onboardingUrl: url,
+      message: 'Complete Stripe Connect onboarding to link your bank for payouts.',
+    });
+  } catch (err: any) {
+    console.error('Connect onboard error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to start Stripe Connect onboarding' });
+  }
+});
+
+app.get('/api/investor/connect/status/:userId', async (req: Request, res: Response) => {
+  const bank = store.bank_details.get(req.params.userId);
+  res.json({
+    stripeAccountId: bank?.stripe_account_id || null,
+    onboarded: Boolean(bank?.connect_onboarding_complete || bank?.payouts_enabled),
+    country: bank?.country || null,
+  });
+});
 
 // ---------------- OPAY RECEIPTS API ----------------
 

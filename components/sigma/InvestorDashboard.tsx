@@ -12,6 +12,7 @@ import {
   fetchNigerianBanks, 
   verifyBankAccount, 
   saveBankDetails,
+  startStripeConnectOnboarding,
   initiateStripePayment,
   verifyStripePayment,
   syncStripeTransactions,
@@ -85,7 +86,8 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
 
   // Config & Banks
   const [stripeConfigured, setStripeConfigured] = useState(false);
-  const [stripeSimulate, setStripeSimulate] = useState(true);
+  const [stripeSimulate, setStripeSimulate] = useState(false);
+  const [connectingPayout, setConnectingPayout] = useState(false);
   const [payoutCountry, setPayoutCountry] = useState('NG');
   const [routingNumber, setRoutingNumber] = useState('');
   const [iban, setIban] = useState('');
@@ -302,6 +304,30 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
       setBankError(err.message || 'Failed to save bank details.');
     } finally {
       setSavingBank(false);
+    }
+  };
+
+  const handleConnectPayout = async () => {
+    if (!user) return;
+    setConnectingPayout(true);
+    setActionError(null);
+    try {
+      const result = await startStripeConnectOnboarding({
+        userId: user.id,
+        email: user.email,
+        country: payoutCountry || bankDetails?.country || 'NG',
+        accountName: bankDetails?.account_name || user.name || undefined,
+      });
+      if (result.onboardingUrl) {
+        window.location.href = result.onboardingUrl;
+        return;
+      }
+      setActionError('No onboarding URL returned from Stripe');
+    } catch (err: any) {
+      setActionError(err.message || 'Could not start Stripe Connect');
+      setTimeout(() => setActionError(null), 5000);
+    } finally {
+      setConnectingPayout(false);
     }
   };
 
@@ -883,34 +909,62 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                     <div className="p-4 rounded-xl bg-[#edefeb] space-y-2 text-xs">
                       <div className="flex justify-between">
                         <span className="text-[#163300]/50">Bank</span>
-                        <strong>{bankDetails.bank_name}</strong>
+                        <strong>{bankDetails.bank_name || bankDetails.country || 'Connected'}</strong>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-[#163300]/50">Account</span>
-                        <strong className="font-mono">{bankDetails.account_number}</strong>
-                      </div>
+                      {bankDetails.account_number ? (
+                        <div className="flex justify-between">
+                          <span className="text-[#163300]/50">Account</span>
+                          <strong className="font-mono">{bankDetails.account_number}</strong>
+                        </div>
+                      ) : null}
                       <div className="flex justify-between border-t border-[#163300]/8 pt-2">
                         <span className="text-[#163300]/50">Name</span>
                         <span className="font-semibold uppercase text-[11px]">{bankDetails.account_name}</span>
                       </div>
+                      {bankDetails.stripe_account_id ? (
+                        <p className="text-[10px] text-emerald-700 pt-1">
+                          Stripe Connect {bankDetails.connect_onboarding_complete ? 'ready' : 'pending onboarding'}
+                        </p>
+                      ) : null}
                     </div>
-                    <button
-                      onClick={() => setShowBankModal(true)}
-                      className="text-xs font-bold underline text-[#163300]/60"
-                    >
-                      Update bank
-                    </button>
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        onClick={() => setShowBankModal(true)}
+                        className="text-xs font-bold underline text-[#163300]/60"
+                      >
+                        Update bank
+                      </button>
+                      <button
+                        onClick={handleConnectPayout}
+                        disabled={connectingPayout}
+                        className="text-xs font-bold underline text-[#163300]"
+                      >
+                        {connectingPayout ? 'Opening Stripe…' : 'Connect payout with Stripe'}
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="p-6 border border-dashed border-[#163300]/15 rounded-xl text-center space-y-3">
                     <Building2 className="w-8 h-8 text-[#163300]/25 mx-auto" />
-                    <p className="text-xs font-semibold">Add your Nigerian bank for payouts</p>
-                    <button
-                      onClick={() => setShowBankModal(true)}
-                      className="px-4 py-2 rounded-lg text-xs font-bold bg-[#163300] text-[#9fe870]"
-                    >
-                      Configure payout bank
-                    </button>
+                    <p className="text-xs font-semibold">Connect your bank for payouts (all countries)</p>
+                    <p className="text-[11px] text-[#163300]/50">
+                      Stripe Connect lets you link NG, US, EU/UK (IBAN) and other supported banks.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                      <button
+                        onClick={handleConnectPayout}
+                        disabled={connectingPayout}
+                        className="px-4 py-2 rounded-lg text-xs font-bold bg-[#163300] text-[#9fe870]"
+                      >
+                        {connectingPayout ? 'Opening…' : 'Connect with Stripe'}
+                      </button>
+                      <button
+                        onClick={() => setShowBankModal(true)}
+                        className="px-4 py-2 rounded-lg text-xs font-bold border border-[#163300]/20"
+                      >
+                        Enter details manually
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -940,13 +994,16 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                   <div className="p-4 border border-dashed border-[#163300]/15 rounded-xl text-center space-y-2">
                     <p className="text-xs font-semibold">No card saved yet</p>
                     <p className="text-[11px] text-[#163300]/50">
-                      Set your monthly amount, then we charge the ₦100,000 minimum to save your card on Stripe.
+                      Already invested? Set your monthly amount — we only verify/save the card (no second ₦100k). Monthly charges use the amount you set (min ≈ ₦100k / $72).
                     </p>
                     <button
-                      onClick={() => setShowPaymentModal(true)}
+                      onClick={() => {
+                        setPaymentTab('monthly');
+                        setShowPaymentModal(true);
+                      }}
                       className="px-4 py-2 rounded-lg text-xs font-bold bg-[#163300] text-[#9fe870]"
                     >
-                      Pay & save card
+                      Set up auto-debit
                     </button>
                   </div>
                 )}
@@ -959,7 +1016,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                     type="number"
                     value={monthlyDebitAmount}
                     onChange={(e) => setMonthlyDebitAmount(e.target.value)}
-                    placeholder="e.g. 50000"
+                    placeholder="e.g. 100000"
                     className="w-full h-11 px-3 rounded-xl border border-[#163300]/10 text-sm"
                   />
                   <p className="text-[11px] text-[#163300]/45">
@@ -1181,8 +1238,10 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                   </p>
                   <p className="text-[#163300]/70">
                     {hasSavedCard
-                      ? `Saved card •••• ${cardDetails.card_last4 || '****'} will be charged automatically.`
-                      : 'Enter the monthly amount first. We charge the ₦100,000 minimum once to save the card, then debit that monthly amount automatically.'}
+                      ? `Saved card •••• ${cardDetails?.card_last4 || '****'} will be charged the monthly amount you set.`
+                      : dashboardStats.totalInvested > 0
+                        ? 'You already funded — we only save your card (no second full deposit). Monthly auto-debit uses the amount you set (min ≈ ₦100k / $72).'
+                        : 'Enter the monthly amount (min ≈ ₦100k / $72). First-time setup charges the platform minimum once to save the card; later months charge only your set amount.'}
                   </p>
                   {autoDebitPlan?.active && (
                     <p className="font-semibold text-emerald-800">

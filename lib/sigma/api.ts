@@ -118,6 +118,25 @@ export async function saveBankDetails(details: {
   return await res.json();
 }
 
+/** Stripe Connect Express — open hosted onboarding to link bank for payouts worldwide */
+export async function startStripeConnectOnboarding(payload: {
+  userId: string;
+  email: string;
+  country?: string;
+  accountName?: string;
+}): Promise<{ success: boolean; onboardingUrl: string; stripeAccountId: string; message?: string }> {
+  const res = await fetch(`${API_BASE}/investor/connect/onboard`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to start Stripe Connect onboarding');
+  }
+  return res.json();
+}
+
 export async function initiateStripePayment(payload: {
   userId: string;
   email: string;

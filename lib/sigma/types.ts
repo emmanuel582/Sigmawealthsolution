@@ -30,6 +30,8 @@ export interface BankDetails {
   iban?: string | null;
   bic?: string | null;
   stripe_account_id?: string | null;
+  connect_onboarding_complete?: boolean;
+  payouts_enabled?: boolean;
   flutterwave_beneficiary_id?: string | null;
   created_at: string;
   updated_at?: string;
