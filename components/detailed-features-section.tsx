@@ -1,6 +1,8 @@
 "use client"
 import { motion } from "framer-motion"
 import { useState, useEffect } from "react"
+import Image from "next/image"
+import Link from "next/link"
 
 interface CounterProps {
   end: number
@@ -143,7 +145,8 @@ export function DetailedFeaturesSection() {
                 We grow your capital with clear weekly returns
               </h3>
               <p className="text-white/85 text-sm sm:text-base max-w-xl leading-relaxed">
-                Invest from ₦100,000, get 25% of your deposit back each week for 4 weeks, and manage everything from your dashboard — card fund, auto-debit, and bank payouts.
+                Invest from ₦100,000, get 25% of your deposit back each week for 4 weeks, and manage
+                everything from your dashboard — card fund, auto-debit, and bank payouts.
               </p>
               <Link
                 href="/auth/signup"
@@ -154,7 +157,6 @@ export function DetailedFeaturesSection() {
             </div>
           </div>
         </motion.div>
-        </div>
       </div>
     </section>
   )
