@@ -10,7 +10,7 @@ Modern Next.js 15 frontend for SigmawealthSolution (**Vercel**). Express API on 
 
 | Purpose | URL |
 |--------|-----|
-| **Webhook endpoint** | `https://sigmawealthsolutionbackend.onrender.com/api/stripe/webhook` |
+| **Webhook endpoint** | `https://sigmawealthsolution.vercel.app/api/stripe/webhook` |
 | **Checkout success** | `https://sigmawealthsolution.vercel.app/dashboard?stripe_return=1&reference=…&session_id={CHECKOUT_SESSION_ID}` |
 | **Checkout cancel** | `https://sigmawealthsolution.vercel.app/dashboard?stripe_cancel=1` |
 | **Connect return** | `https://sigmawealthsolution.vercel.app/dashboard?connect_return=1` |
@@ -31,18 +31,22 @@ MIN_DEPOSIT_USD=72
 AUTO_DEBIT_SETUP_FEE_NGN=1
 ```
 
-### Vercel (frontend) env
+### Vercel (frontend + Stripe live routes) env
 
 ```
 SIGMA_API_URL=https://sigmawealthsolutionbackend.onrender.com
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
+STRIPE_CURRENCY=ngn
+FRONTEND_URL=https://sigmawealthsolution.vercel.app
+SUPABASE_SERVICE_ROLE_KEY=...
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```
 
-**Minimum top-up / monthly auto-debit:** ≈ ₦100,000 / **$72** (EUR/GBP via FX).  
-**Already funded + auto-debit:** SetupIntent saves card (no second 100k). Monthly charge = amount they set.  
-**Payouts:** Stripe Connect Express — investor connects bank; transfers go to their connected account.
+Stripe **initiate / verify / webhook / Connect onboard / config** run on Vercel (not Render) so payments work even if the Render API is stale.
+Minimum fund / monthly auto-debit on the site: **₦100,000** (Naira only in the UI).
 
 Simulation is **off** in production. Do not set `STRIPE_ALLOW_SIMULATE=1` on live hosts.
 

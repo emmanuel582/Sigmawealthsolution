@@ -65,17 +65,23 @@ const nextConfig = {
   },
   async rewrites() {
     const api = (process.env.SIGMA_API_URL || process.env.NEXT_PUBLIC_SIGMA_API_URL || 'http://127.0.0.1:4000').replace(/\/$/, '')
-    // Proxy investor/admin/auth/payment APIs to the Express backend.
-    // Keep Next-native routes (/api/chat, /api/feedback) on Next.
+    // Proxy investor/admin/auth APIs to Express (Render).
+    // Stripe initiate/verify/webhook + /api/config + Connect onboard are Next.js routes on Vercel.
     return [
       { source: '/api/health', destination: `${api}/health` },
-      { source: '/api/config', destination: `${api}/api/config` },
       { source: '/api/banks', destination: `${api}/api/banks` },
       { source: '/api/verify-account', destination: `${api}/api/verify-account` },
       { source: '/api/auth/:path*', destination: `${api}/api/auth/:path*` },
-      { source: '/api/investor/:path*', destination: `${api}/api/investor/:path*` },
+      { source: '/api/investor/connect/status/:path*', destination: `${api}/api/investor/connect/status/:path*` },
+      { source: '/api/investor/dashboard/:path*', destination: `${api}/api/investor/dashboard/:path*` },
+      { source: '/api/investor/profile/:path*', destination: `${api}/api/investor/profile/:path*` },
+      { source: '/api/investor/register-profile', destination: `${api}/api/investor/register-profile` },
+      { source: '/api/investor/bank-details', destination: `${api}/api/investor/bank-details` },
+      { source: '/api/investor/auto-debit-plan', destination: `${api}/api/investor/auto-debit-plan` },
+      { source: '/api/investor/process-auto-debits', destination: `${api}/api/investor/process-auto-debits` },
+      { source: '/api/investor/auto-debit-reminders', destination: `${api}/api/investor/auto-debit-reminders` },
+      { source: '/api/investor/cancel-subscription', destination: `${api}/api/investor/cancel-subscription` },
       { source: '/api/flutterwave/:path*', destination: `${api}/api/flutterwave/:path*` },
-      { source: '/api/stripe/:path*', destination: `${api}/api/stripe/:path*` },
       { source: '/api/opay/:path*', destination: `${api}/api/opay/:path*` },
       { source: '/api/admin/:path*', destination: `${api}/api/admin/:path*` },
       { source: '/api/payouts/:path*', destination: `${api}/api/payouts/:path*` },

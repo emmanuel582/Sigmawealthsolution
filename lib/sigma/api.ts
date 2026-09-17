@@ -148,6 +148,7 @@ export async function initiateStripePayment(payload: {
   monthlyPlanAmount?: number;
   saveCard?: boolean;
   paymentType?: 'card' | 'opay';
+  currency?: string;
 }): Promise<{
   success: boolean;
   chargeId: string;
@@ -166,7 +167,7 @@ export async function initiateStripePayment(payload: {
   const res = await fetch(`${API_BASE}/stripe/initiate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, currency: 'ngn' }),
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: 'Failed to initiate payment' }));

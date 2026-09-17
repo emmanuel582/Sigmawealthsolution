@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: sigmawealth-api
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start:api
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: STRIPE_CURRENCY
+        value: ngn
+      - key: FRONTEND_URL
+        value: https://sigmawealthsolution.vercel.app
+      - key: PUBLIC_API_URL
+        fromService:
+          type: web
+          name: sigmawealth-api
+          property: host
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false

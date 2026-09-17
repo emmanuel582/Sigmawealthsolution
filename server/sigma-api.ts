@@ -42,7 +42,13 @@ import {
   STRIPE_CURRENCY,
   MIN_DEPOSIT_NGN,
   MIN_DEPOSIT_USD,
+  formatMoney,
+  currencyForCountry,
+  isSupportedPaymentCurrency,
+  normalizeCurrency,
+  resolveConnectPayoutCurrency,
 } from './lib/stripePayments.js';
+import { SUPPORTED_PAYMENT_CURRENCIES } from './lib/money.js';
 import { applySecurityMiddleware, productionErrorHandler } from './lib/security.js';
 import { sanitizeRequestBody } from './lib/sanitize.js';
 import { hashPassword, verifyPassword } from './lib/passwords.js';
@@ -240,8 +246,27 @@ function buildReferralPayload(userId: string, profile: any) {
   };
 }
 
-/** 5% of the referred person's initial (first) investment — paid out end of week */
-function creditReferralCommission(payerProfile: any, paymentAmount: number) {
+function addReferralPending(referrer: any, amount: number, currency: string) {
+  const cur = normalizeCurrency(currency);
+  if (!referrer.referral_pending_by_currency) referrer.referral_pending_by_currency = {};
+  referrer.referral_pending_by_currency[cur] =
+    Number(referrer.referral_pending_by_currency[cur] || 0) + amount;
+  referrer.referral_pending_payout = Number(referrer.referral_pending_payout || 0) + amount;
+  referrer.referral_currency = referrer.referral_currency || cur;
+}
+
+function getReferralPendingMap(profile: any): Record<string, number> {
+  const map: Record<string, number> = { ...(profile.referral_pending_by_currency || {}) };
+  const legacy = Number(profile.referral_pending_payout || 0);
+  if (legacy > 0 && Object.keys(map).length === 0) {
+    const cur = normalizeCurrency(profile.referral_currency || STRIPE_CURRENCY);
+    map[cur] = legacy;
+  }
+  return map;
+}
+
+/** 5% of the referred person's initial (first) investment — paid out end of week in payment currency */
+function creditReferralCommission(payerProfile: any, paymentAmount: number, currency = STRIPE_CURRENCY) {
   if (!payerProfile?.referred_by || !paymentAmount) return;
   if (payerProfile.referral_initial_credited) return;
   const link = store.referrals.find((r) => r.referred_id === payerProfile.id);
@@ -250,7 +275,8 @@ function creditReferralCommission(payerProfile: any, paymentAmount: number) {
     store.profiles.set(payerProfile.id, payerProfile);
     return;
   }
-  const commission = Math.round(Number(paymentAmount) * 0.05);
+  const cur = normalizeCurrency(currency);
+  const commission = Math.round(Number(paymentAmount) * 0.05 * 100) / 100;
   if (commission <= 0) return;
   const referrer = store.profiles.get(payerProfile.referred_by);
   if (!referrer) return;
@@ -259,17 +285,18 @@ function creditReferralCommission(payerProfile: any, paymentAmount: number) {
   store.profiles.set(payerProfile.id, payerProfile);
 
   referrer.referral_earnings = Number(referrer.referral_earnings || 0) + commission;
-  referrer.referral_pending_payout = Number(referrer.referral_pending_payout || 0) + commission;
+  addReferralPending(referrer, commission, cur);
   store.profiles.set(referrer.id, referrer);
 
   if (link) {
     link.earned_total = Number(link.earned_total || 0) + commission;
+    link.earned_currency = cur;
     link.last_earn_at = new Date().toISOString();
   }
   store.notifications.unshift({
     id: `notif-ref-${Date.now()}`,
     title: 'Referral reward credited',
-    body: `You earned ${commission.toLocaleString('en-NG', { style: 'currency', currency: 'NGN' })} (5% of first investment) from ${payerProfile.name || payerProfile.email}. It will be paid to your bank at the end of the week.`,
+    body: `You earned ${formatMoney(commission, cur)} (5% of first investment) from ${payerProfile.name || payerProfile.email}. It will be paid to your connected bank at the end of the week.`,
     audience: 'single',
     target_user_id: referrer.id,
     icon: 'gift',
@@ -280,7 +307,7 @@ function creditReferralCommission(payerProfile: any, paymentAmount: number) {
   logActivity(
     referrer.name || referrer.email,
     'REFERRAL_EARNING',
-    `Earned ₦${commission.toLocaleString()} referral commission (5% initial, weekly payout)`,
+    `Earned ${formatMoney(commission, cur)} referral commission (5% initial, weekly payout)`,
     commission
   );
 }
@@ -291,54 +318,88 @@ function isEndOfWeek(date = new Date()): boolean {
 }
 
 async function processWeeklyReferralPayouts(actor = 'Referral Payout Engine') {
-  const results: Array<{ userId: string; status: string; amount?: number; message?: string }> = [];
+  const results: Array<{
+    userId: string;
+    status: string;
+    amount?: number;
+    currency?: string;
+    message?: string;
+  }> = [];
   for (const profile of store.profiles.values()) {
-    const pending = Number(profile.referral_pending_payout || 0);
-    if (pending <= 0) continue;
+    const pendingMap = getReferralPendingMap(profile);
+    const entries = Object.entries(pendingMap).filter(([, amt]) => Number(amt) > 0);
+    if (!entries.length) continue;
+
     const bank = getBankDetailsForUser(profile.id);
     if (!hasValidPayoutDestination(bank)) {
+      const totalLabel = entries
+        .map(([cur, amt]) => formatMoney(Number(amt), cur))
+        .join(', ');
       notifyInvestor(
         profile.id,
-        'Referral payout waiting on bank details',
-        `Your ₦${pending.toLocaleString()} referral reward is ready but needs a valid payout bank account.`,
+        'Referral payout waiting on Connect',
+        `Your referral reward (${totalLabel}) is ready. Connect your bank via Stripe in the dashboard to receive payouts.`,
         'alert'
       );
-      results.push({ userId: profile.id, status: 'blocked', amount: pending, message: 'Missing bank details' });
+      results.push({
+        userId: profile.id,
+        status: 'blocked',
+        message: 'Stripe Connect onboarding required',
+      });
       continue;
     }
-    const transfer = await sendInvestorPayout({
-      amountMajor: pending,
-      stripeAccountId: bank?.stripe_account_id || null,
-      description: `Sigma referral payout — ${profile.name || profile.email}`,
-      metadata: { type: 'referral', userId: profile.id },
-    });
-    if (!transfer.success) {
-      results.push({ userId: profile.id, status: 'failed', amount: pending, message: transfer.message });
-      continue;
+
+    for (const [cur, pending] of entries) {
+      const amount = Number(pending);
+      if (amount <= 0) continue;
+      const transfer = await sendInvestorPayout({
+        amountMajor: amount,
+        currency: cur,
+        stripeAccountId: bank?.stripe_account_id || null,
+        description: `Sigma referral payout — ${profile.name || profile.email}`,
+        metadata: { type: 'referral', userId: profile.id, currency: cur },
+      });
+      if (!transfer.success) {
+        results.push({
+          userId: profile.id,
+          status: 'failed',
+          amount,
+          currency: cur,
+          message: transfer.message,
+        });
+        continue;
+      }
+      profile.referral_pending_by_currency = profile.referral_pending_by_currency || {};
+      profile.referral_pending_by_currency[cur] = 0;
+      profile.referral_pending_payout = Object.values(profile.referral_pending_by_currency).reduce(
+        (s: number, v: unknown) => s + Number(v || 0),
+        0
+      );
+      profile.referral_paid_total = Number(profile.referral_paid_total || 0) + amount;
+      store.profiles.set(profile.id, profile);
+      const paidCur = transfer.currency || cur;
+      store.payouts.unshift({
+        id: `po-ref-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+        user_id: profile.id,
+        amount,
+        currency: paidCur,
+        mode: 'automatic',
+        status: 'successful',
+        flutterwave_transfer_id: transfer.transferId,
+        stripe_transfer_id: transfer.transferId,
+        processed_at: new Date().toISOString(),
+        processed_by: actor,
+        notes: `Weekly referral payout (5%) · ${paidCur.toUpperCase()}`,
+        payout_phase: 'referral',
+      });
+      notifyInvestor(
+        profile.id,
+        'Referral payout sent',
+        `${formatMoney(amount, paidCur)} referral reward was sent to your connected bank account.`,
+        'gift'
+      );
+      results.push({ userId: profile.id, status: 'paid', amount, currency: paidCur });
     }
-    profile.referral_pending_payout = 0;
-    profile.referral_paid_total = Number(profile.referral_paid_total || 0) + pending;
-    store.profiles.set(profile.id, profile);
-    store.payouts.unshift({
-      id: `po-ref-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-      user_id: profile.id,
-      amount: pending,
-      mode: 'automatic',
-      status: 'successful',
-      flutterwave_transfer_id: transfer.transferId,
-      stripe_transfer_id: transfer.transferId,
-      processed_at: new Date().toISOString(),
-      processed_by: actor,
-      notes: `Weekly referral payout (5%)${transfer.simulated ? ' · simulated' : ''}`,
-      payout_phase: 'referral',
-    });
-    notifyInvestor(
-      profile.id,
-      'Referral payout sent',
-      `₦${pending.toLocaleString()} referral reward was paid to your bank account.`,
-      'gift'
-    );
-    results.push({ userId: profile.id, status: 'paid', amount: pending });
   }
   return results;
 }
@@ -596,6 +657,7 @@ function ensureInvestmentPayoutSchedule(inv: any) {
 
 function computePayoutForInvestment(inv: any): {
   amount: number;
+  currency: string;
   phase: `week${PayoutWeek}`;
   week: PayoutWeek;
   label: string;
@@ -604,6 +666,7 @@ function computePayoutForInvestment(inv: any): {
 } {
   ensureInvestmentPayoutSchedule(inv);
   const principal = Math.max(0, Number(inv.amount) || 0);
+  const currency = normalizeCurrency(inv.currency || STRIPE_CURRENCY);
   const week = normalizePayoutWeek(inv.payout_phase);
   const interestRate = getInterestRate();
   const principalComponent = Math.round(principal * WEEKLY_SHARE);
@@ -611,6 +674,7 @@ function computePayoutForInvestment(inv: any): {
   if (week < 4) {
     return {
       amount: principalComponent,
+      currency,
       phase: `week${week}`,
       week,
       label: `Week ${week} · 25% payout`,
@@ -622,12 +686,23 @@ function computePayoutForInvestment(inv: any): {
   const interest = Math.round(principal * interestRate);
   return {
     amount: principalComponent + interest,
+    currency,
     phase: 'week4',
     week: 4,
     label: `Week 4 · 25% + ${(interestRate * 100).toFixed(0)}% interest`,
     interestComponent: interest,
     principalComponent,
   };
+}
+
+async function resolveInvestorPayoutCurrency(userId: string, investment?: any): Promise<string> {
+  const bank = getBankDetailsForUser(userId);
+  const inv = investment || store.investments.get(userId);
+  const hint = bank?.currency || inv?.currency || STRIPE_CURRENCY;
+  if (bank?.stripe_account_id) {
+    return resolveConnectPayoutCurrency(bank.stripe_account_id, hint);
+  }
+  return normalizeCurrency(hint);
 }
 
 function advanceInvestmentAfterPayout(inv: any) {
@@ -677,12 +752,10 @@ app.get('/api/config', (req: Request, res: Response) => {
     isSupabaseLive: isLiveSupabase,
     minDepositNgn: MIN_DEPOSIT_NGN,
     minDepositUsd: MIN_DEPOSIT_USD,
-    minDepositByCurrency: {
-      ngn: minDepositMajor('ngn'),
-      usd: minDepositMajor('usd'),
-      eur: minDepositMajor('eur'),
-      gbp: minDepositMajor('gbp'),
-    },
+    supportedPaymentCurrencies: SUPPORTED_PAYMENT_CURRENCIES,
+    minDepositByCurrency: Object.fromEntries(
+      SUPPORTED_PAYMENT_CURRENCIES.map((c) => [c, minDepositMajor(c)])
+    ),
     autoDebitSetupFeeNgn: Number(process.env.AUTO_DEBIT_SETUP_FEE_NGN || 1),
     referralRate: 0.05,
     frontendUrl: getFrontendBaseUrl(),
@@ -1360,11 +1433,13 @@ app.get('/api/investor/dashboard/:id', async (req: Request, res: Response) => {
 });
 
 app.post('/api/investor/auto-debit-plan', (req: Request, res: Response) => {
-  const { userId, amount } = req.body;
+  const { userId, amount, currency: bodyCurrency } = req.body;
   if (!userId || !amount || Number(amount) <= 0) {
     return res.status(400).json({ message: 'userId and a positive monthly amount are required' });
   }
-  const minErr = assertMinDeposit(Number(amount));
+  const inv = store.investments.get(userId);
+  const currency = normalizeCurrency(bodyCurrency || inv?.currency || STRIPE_CURRENCY);
+  const minErr = assertMinDeposit(Number(amount), currency);
   if (minErr) return res.status(400).json({ message: minErr });
   const card = store.card_details.get(userId);
   if (!hasSavedCardToken(card)) {
@@ -1378,6 +1453,7 @@ app.post('/api/investor/auto-debit-plan', (req: Request, res: Response) => {
   const plan = {
     user_id: userId,
     amount: Number(amount),
+    currency,
     active: true,
     next_charge_date: nextCharge,
     reminder_date: reminder,
@@ -1396,7 +1472,7 @@ app.post('/api/investor/auto-debit-plan', (req: Request, res: Response) => {
   store.notifications.unshift({
     id: `notif-ad-${Date.now()}`,
     title: 'Monthly auto-debit activated',
-    body: `Your card will be charged ₦${Number(amount).toLocaleString()} each month. We’ll remind you a day before.`,
+    body: `Your card will be charged ${formatMoney(Number(amount), currency)} each month. We’ll remind you a day before.`,
     audience: 'single',
     target_user_id: userId,
     icon: 'bell',
@@ -1405,7 +1481,11 @@ app.post('/api/investor/auto-debit-plan', (req: Request, res: Response) => {
     delivery_status: 'delivered',
   });
 
-  logActivity(profile?.name || userId, 'AUTO_DEBIT_SET', `Monthly auto-debit set to ₦${Number(amount).toLocaleString()}`);
+  logActivity(
+    profile?.name || userId,
+    'AUTO_DEBIT_SET',
+    `Monthly auto-debit set to ${formatMoney(Number(amount), currency)}`
+  );
   res.json(plan);
 });
 
@@ -1529,7 +1609,7 @@ app.post('/api/investor/bank-details', (req: Request, res: Response) => {
     bankCode,
     bankName,
     accountName,
-    country = 'NG',
+    country = 'US',
     currency,
     routingNumber,
     iban,
@@ -1541,8 +1621,8 @@ app.post('/api/investor/bank-details', (req: Request, res: Response) => {
     return res.status(400).json({ message: 'userId and account holder name are required' });
   }
 
-  const destCountry = String(country || 'NG').toUpperCase();
-  const destCurrency = String(currency || (destCountry === 'US' ? 'USD' : destCountry === 'NG' ? 'NGN' : 'EUR')).toUpperCase();
+  const destCountry = String(country || 'US').toUpperCase();
+  const destCurrency = String(currency || currencyForCountry(destCountry)).toUpperCase();
 
   const validationError = validatePayoutDestination({
     country: destCountry,
@@ -1619,6 +1699,7 @@ async function creditVerifiedPayment(params: {
   email?: string;
   name?: string;
   verifiedAmount: number;
+  currency?: string;
   phase?: string;
   isRecurringPlan?: boolean;
   monthlyPlanAmount?: number;
@@ -1636,6 +1717,7 @@ async function creditVerifiedPayment(params: {
     email,
     name,
     verifiedAmount,
+    currency: paymentCurrency = STRIPE_CURRENCY,
     phase,
     isRecurringPlan,
     monthlyPlanAmount,
@@ -1648,6 +1730,7 @@ async function creditVerifiedPayment(params: {
     provider = 'stripe',
     creditInvestment = true,
   } = params;
+  const currency = normalizeCurrency(paymentCurrency);
 
   const verifiedCustomerEmail = (email || '').toLowerCase().trim();
   const verifiedCustomerName = name || 'Investor';
@@ -1693,6 +1776,7 @@ async function creditVerifiedPayment(params: {
       user_id: effectiveUserId,
       user_email: profile.email || verifiedCustomerEmail,
       amount: verifiedAmount,
+      currency,
       method: isRecurringPlan ? 'auto_debit' : 'card',
       flutterwave_tx_ref: txRef,
       flutterwave_ref: flwRef,
@@ -1714,7 +1798,7 @@ async function creditVerifiedPayment(params: {
     if (userId && userId !== profile.id) {
       store.profiles.set(userId, profile);
     }
-    creditReferralCommission(profile, verifiedAmount);
+    creditReferralCommission(profile, verifiedAmount, currency);
   } else if (!existingPayment && !shouldCredit) {
     payment = {
       id: `pay-setup-${Date.now()}`,
@@ -1782,6 +1866,7 @@ async function creditVerifiedPayment(params: {
   if (investment) {
     if (!existingPayment && shouldCredit) {
       investment.amount = Number(investment.amount) + verifiedAmount;
+      investment.currency = investment.currency || currency;
     }
     investment.phase = targetPhase;
     investment.type = isRecurringPlan ? 'auto' : investment.type;
@@ -1795,6 +1880,7 @@ async function creditVerifiedPayment(params: {
       id: `inv-${Date.now()}`,
       user_id: effectiveUserId,
       amount: profile.total_invested > 0 ? profile.total_invested : verifiedAmount,
+      currency,
       phase: targetPhase,
       type: isRecurringPlan ? 'auto' : 'one-time',
       status: 'active',
@@ -1857,7 +1943,7 @@ async function creditVerifiedPayment(params: {
         await supabaseAdmin.from('notifications').insert({
           id: crypto.randomUUID(),
           title: 'Payment Received',
-          body: `Congratulations! Your payment of ₦${verifiedAmount.toLocaleString()} has been successfully credited to ${targetPhase}.`,
+          body: `Congratulations! Your payment of ${formatMoney(verifiedAmount, currency)} has been successfully credited to ${targetPhase}.`,
           audience: effectiveUserId,
           target_user_id: effectiveUserId,
           delivery_status: 'delivered'
@@ -1872,14 +1958,14 @@ async function creditVerifiedPayment(params: {
     logActivity(
       profile?.name || verifiedCustomerEmail || effectiveUserId,
       'PAYMENT_RECEIVED',
-      `Received payment of ₦${verifiedAmount.toLocaleString()} via Stripe`,
+      `Received payment of ${formatMoney(verifiedAmount, currency)} via Stripe`,
       verifiedAmount
     );
 
     store.notifications.unshift({
       id: crypto.randomUUID(),
       title: 'Payment Received',
-      body: `Congratulations! Your payment of ₦${verifiedAmount.toLocaleString()} has been successfully credited to ${targetPhase}.`,
+      body: `Congratulations! Your payment of ${formatMoney(verifiedAmount, currency)} has been successfully credited to ${targetPhase}.`,
       audience: effectiveUserId,
       target_user_id: effectiveUserId,
       sent_at: new Date().toISOString(),
@@ -1931,7 +2017,12 @@ async function handleStripeInitiate(req: Request, res: Response) {
     });
   }
 
-  const currency = String(bodyCurrency || STRIPE_CURRENCY).toLowerCase();
+  const currency = normalizeCurrency(bodyCurrency || STRIPE_CURRENCY);
+  if (!isSupportedPaymentCurrency(currency)) {
+    return res.status(400).json({
+      message: `Currency ${currency.toUpperCase()} is not supported. Choose USD, EUR, GBP, NGN, CAD, AUD, or another supported currency.`,
+    });
+  }
   const isRecurring = Boolean(isRecurringPlan);
   const planAmount = Number(monthlyPlanAmount || amount || 0);
   const chargeAmount = Number(amount || 0);
@@ -2220,6 +2311,7 @@ async function handleStripeVerify(req: Request, res: Response) {
     email: email || pending?.email,
     name: name || pending?.name,
     verifiedAmount: creditInvestment ? verifiedAmount || pending?.amount || 0 : 0,
+    currency,
     phase: phase || pending?.phase,
     isRecurringPlan: recurring,
     monthlyPlanAmount: planAmt,
@@ -2339,6 +2431,7 @@ app.post('/api/stripe/webhook', async (req: Request, res: Response) => {
         verifiedAmount: creditInvestment
           ? (data.amount_total ? fromMinorUnits(data.amount_total, meta.currency || STRIPE_CURRENCY) : Number(meta.chargeAmount || pending?.amount || 0))
           : 0,
+        currency: normalizeCurrency(meta.currency || pending?.currency || STRIPE_CURRENCY),
         phase: meta.phase || pending?.phase,
         isRecurringPlan: meta.isRecurringPlan === 'true' || pending?.isRecurringPlan,
         monthlyPlanAmount: meta.monthlyPlanAmount ? Number(meta.monthlyPlanAmount) : pending?.monthlyPlanAmount,
@@ -2366,6 +2459,7 @@ app.post('/api/stripe/webhook', async (req: Request, res: Response) => {
         verifiedAmount: creditInvestment
           ? (data.amount ? fromMinorUnits(data.amount, data.currency || STRIPE_CURRENCY) : Number(meta.chargeAmount || pending?.amount || 0))
           : 0,
+        currency: normalizeCurrency(data.currency || meta.currency || pending?.currency || STRIPE_CURRENCY),
         phase: meta.phase || pending?.phase,
         isRecurringPlan: meta.isRecurringPlan === 'true' || pending?.isRecurringPlan,
         monthlyPlanAmount: meta.monthlyPlanAmount ? Number(meta.monthlyPlanAmount) : pending?.monthlyPlanAmount,
@@ -2390,6 +2484,7 @@ app.post('/api/stripe/webhook', async (req: Request, res: Response) => {
         email: pending?.email,
         name: pending?.name,
         verifiedAmount: 0,
+        currency: normalizeCurrency(meta.currency || pending?.currency || STRIPE_CURRENCY),
         phase: meta.phase || pending?.phase,
         isRecurringPlan: true,
         monthlyPlanAmount: meta.monthlyPlanAmount ? Number(meta.monthlyPlanAmount) : pending?.monthlyPlanAmount,
@@ -2407,8 +2502,14 @@ app.post('/api/stripe/webhook', async (req: Request, res: Response) => {
     if (type === 'account.updated' && data.id) {
       for (const [uid, bank] of store.bank_details.entries()) {
         if (bank?.stripe_account_id === data.id) {
-          bank.connect_onboarding_complete = Boolean(data.charges_enabled || data.payouts_enabled);
+          bank.connect_onboarding_complete = Boolean(data.details_submitted && data.payouts_enabled);
           bank.payouts_enabled = Boolean(data.payouts_enabled);
+          if (data.default_currency) {
+            bank.currency = String(data.default_currency).toUpperCase();
+          }
+          if (data.country) {
+            bank.country = String(data.country).toUpperCase();
+          }
           bank.updated_at = new Date().toISOString();
           store.bank_details.set(uid, bank);
         }
@@ -2448,7 +2549,7 @@ app.post('/api/flutterwave/verify', handleStripeVerify);
 
 /** Stripe Connect Express — investor connects bank/card for payouts in their country */
 app.post('/api/investor/connect/onboard', async (req: Request, res: Response) => {
-  const { userId, email, country = 'NG', accountName } = req.body || {};
+  const { userId, email, country = 'US', accountName } = req.body || {};
   if (!userId || !email) {
     return res.status(400).json({ message: 'userId and email are required' });
   }
@@ -2457,7 +2558,7 @@ app.post('/api/investor/connect/onboard', async (req: Request, res: Response) =>
   }
 
   try {
-    const destCountry = String(country || 'NG').toUpperCase();
+    const destCountry = String(country || 'US').toUpperCase();
     let bank = store.bank_details.get(userId) || {};
     let accountId = bank.stripe_account_id;
 
@@ -2480,7 +2581,7 @@ app.post('/api/investor/connect/onboard', async (req: Request, res: Response) =>
       ...bank,
       user_id: userId,
       country: destCountry,
-      currency: destCountry === 'US' ? 'USD' : destCountry === 'NG' ? 'NGN' : bank.currency || 'EUR',
+      currency: currencyForCountry(destCountry).toUpperCase(),
       account_name: accountName || bank.account_name || 'Investor',
       stripe_account_id: accountId,
       connect_onboarding_complete: Boolean(bank.connect_onboarding_complete),
@@ -3216,36 +3317,39 @@ app.post('/api/admin/payouts/manual-pay', async (req: Request, res: Response) =>
   if (!hasValidPayoutDestination(bank)) {
     notifyInvestor(
       userId,
-      'Payout blocked — bank details missing',
-      'Admin attempted a payout but your payout bank details are missing. Update them in your dashboard (NG NUBAN, US routing+account, or IBAN).',
+      'Payout blocked — Connect required',
+      'Complete Stripe Connect bank onboarding in your dashboard to receive payouts worldwide.',
       'alert'
     );
-    return res.status(400).json({ message: 'Investor has incomplete bank details for payout' });
+    return res.status(400).json({ message: 'Investor must complete Stripe Connect onboarding for payouts' });
   }
 
+  const payoutCurrency = await resolveInvestorPayoutCurrency(String(userId), investment);
   const transfer = await sendInvestorPayout({
     amountMajor: payAmount,
-    currency: bank?.currency || undefined,
+    currency: due.currency || payoutCurrency,
     stripeAccountId: bank?.stripe_account_id || null,
     description: `Sigma manual payout — ${due.label}`,
-    metadata: { userId: String(userId), phase: due.phase, mode: 'manual' },
+    metadata: { userId: String(userId), phase: due.phase, mode: 'manual', currency: due.currency || payoutCurrency },
   });
 
   if (!transfer.success) {
     return res.status(502).json({ message: transfer.message || 'Payout transfer failed' });
   }
 
+  const paidCurrency = transfer.currency || due.currency || payoutCurrency;
   const payout = {
     id: `po-${Date.now()}`,
     user_id: userId,
     amount: payAmount,
+    currency: paidCurrency,
     mode: 'manual',
     status: 'successful',
     flutterwave_transfer_id: transfer.transferId,
     stripe_transfer_id: transfer.transferId,
     processed_at: new Date().toISOString(),
     processed_by: adminName || 'Admin Ops',
-    notes: `${referenceNote} · ${due.label}${bank?.bank_name ? ` · ${bank.bank_name}` : ''}${transfer.simulated ? ' · simulated' : ''}`,
+    notes: `${referenceNote} · ${due.label} · ${paidCurrency.toUpperCase()}`,
     payout_phase: due.phase,
     amount_invested: Number(investment.amount || 0),
     suggested_amount: due.amount,
@@ -3258,7 +3362,7 @@ app.post('/api/admin/payouts/manual-pay', async (req: Request, res: Response) =>
   notifyInvestor(
     userId,
     due.week === 4 ? 'Week 4 payout + interest received' : `Week ${due.week} payout received`,
-    `₦${payAmount.toLocaleString()} was marked paid (${due.label}). Next payout date: ${updatedNextPaymentDate || '—'}.`,
+    `${formatMoney(payAmount, paidCurrency)} was sent to your connected bank (${due.label}). Next payout: ${updatedNextPaymentDate || '—'}.`,
     'check'
   );
 
@@ -3288,7 +3392,7 @@ app.post('/api/admin/payouts/manual-pay', async (req: Request, res: Response) =>
   await logActivity(
     adminName || 'Admin',
     'MANUAL_PAYOUT_DISBURSED',
-    `Disbursed manual ${due.phase} payout of ₦${payAmount.toLocaleString()} to ${profile?.name || userId}. Note: ${referenceNote}`,
+    `Disbursed manual ${due.phase} payout of ${formatMoney(payAmount, paidCurrency)} to ${profile?.name || userId}. Note: ${referenceNote}`,
     payAmount
   );
 
@@ -3329,17 +3433,18 @@ app.post('/api/admin/payouts/manual-batch', async (req: Request, res: Response) 
     if (!hasValidPayoutDestination(bank)) {
       notifyInvestor(
         userId,
-        'Payout blocked — wrong/missing bank details',
-        'Admin attempted a payout but your bank details are missing or incomplete. Update NG/US/IBAN details in the dashboard.',
+        'Payout blocked — Connect required',
+        'Complete Stripe Connect bank onboarding in your dashboard to receive payouts.',
         'alert'
       );
-      results.push({ userId, status: 'failed', message: 'Missing bank details — investor notified' });
+      results.push({ userId, status: 'failed', message: 'Stripe Connect required — investor notified' });
       continue;
     }
 
+    const batchCurrency = await resolveInvestorPayoutCurrency(userId, investment);
     const transfer = await sendInvestorPayout({
       amountMajor: due.amount,
-      currency: bank?.currency || undefined,
+      currency: due.currency || batchCurrency,
       stripeAccountId: bank?.stripe_account_id || null,
       description: `Sigma batch payout — ${due.label}`,
       metadata: { userId: String(userId), phase: due.phase, mode: 'manual_batch' },
@@ -3349,17 +3454,19 @@ app.post('/api/admin/payouts/manual-batch', async (req: Request, res: Response) 
       continue;
     }
 
+    const paidCur = transfer.currency || due.currency || batchCurrency;
     const payout = {
       id: `po-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
       user_id: userId,
       amount: due.amount,
+      currency: paidCur,
       mode: 'manual',
       status: 'successful',
       flutterwave_transfer_id: transfer.transferId,
       stripe_transfer_id: transfer.transferId,
       processed_at: new Date().toISOString(),
       processed_by: adminName || 'Admin Ops',
-      notes: `${String(referenceNote).trim()} · ${due.label} · ${bank.bank_name || 'Bank'} ••••${String(bank.account_number || bank.iban || '').slice(-4)}${transfer.simulated ? ' · simulated' : ''}`,
+      notes: `${String(referenceNote).trim()} · ${due.label} · ${paidCur.toUpperCase()}`,
       payout_phase: due.phase,
       amount_invested: Number(investment.amount || 0),
       suggested_amount: due.amount,
@@ -3369,7 +3476,7 @@ app.post('/api/admin/payouts/manual-batch', async (req: Request, res: Response) 
     notifyInvestor(
       userId,
       due.week === 4 ? 'Week 4 payout + interest sent' : `Week ${due.week} payout sent`,
-      `₦${due.amount.toLocaleString()} (${due.label}) was paid to your ${bank.bank_name || 'bank'} account.`,
+      `${formatMoney(due.amount, paidCur)} (${due.label}) was sent to your connected bank account.`,
       'check'
     );
     results.push({ userId, status: 'paid', amount: due.amount });

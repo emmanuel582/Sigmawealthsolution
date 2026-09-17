@@ -138,7 +138,10 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
         fetchInvestorDashboardData(user.id, user.email),
       ]);
 
-      setStripeConfigured(Boolean(configData.stripeConfigured ?? configData.flutterwaveConfigured));
+      setStripeConfigured(
+        Boolean(configData.stripeConfigured) ||
+          Boolean(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith('pk_'))
+      );
       setStripeSimulate(Boolean(configData.stripeSimulate ?? configData.flutterwaveSandbox));
       setBanksList(banks);
 
@@ -994,7 +997,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                   <div className="p-4 border border-dashed border-[#163300]/15 rounded-xl text-center space-y-2">
                     <p className="text-xs font-semibold">No card saved yet</p>
                     <p className="text-[11px] text-[#163300]/50">
-                      Already invested? Set your monthly amount — we only verify/save the card (no second ₦100k). Monthly charges use the amount you set (min ≈ ₦100k / $72).
+                      Already invested? Set your monthly amount in naira — we only verify/save the card (no second ₦100,000). Monthly charges use the amount you set (minimum ₦100,000).
                     </p>
                     <button
                       onClick={() => {
@@ -1240,8 +1243,8 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                     {hasSavedCard
                       ? `Saved card •••• ${cardDetails?.card_last4 || '****'} will be charged the monthly amount you set.`
                       : dashboardStats.totalInvested > 0
-                        ? 'You already funded — we only save your card (no second full deposit). Monthly auto-debit uses the amount you set (min ≈ ₦100k / $72).'
-                        : 'Enter the monthly amount (min ≈ ₦100k / $72). First-time setup charges the platform minimum once to save the card; later months charge only your set amount.'}
+                        ? 'You already funded — we only save your card (no second full deposit). Monthly auto-debit uses the naira amount you set (minimum ₦100,000).'
+                        : 'Enter the monthly amount in naira (minimum ₦100,000). First-time setup charges ₦100,000 once to save the card; later months charge only your set amount.'}
                   </p>
                   {autoDebitPlan?.active && (
                     <p className="font-semibold text-emerald-800">

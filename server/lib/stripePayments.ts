@@ -1,10 +1,16 @@
 import Stripe from 'stripe';
+import {
+  formatMoney,
+  currencyForCountry,
+  isSupportedPaymentCurrency,
+  normalizeCurrency,
+} from '@/lib/sigma/money';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
 
-/** Platform settle currency — investors can still pay in other currencies when allowed */
-export const STRIPE_CURRENCY = (process.env.STRIPE_CURRENCY || 'ngn').toLowerCase();
+/** Platform default — frontend sticks to Naira (₦100,000 min). Override via STRIPE_CURRENCY. */
+export const STRIPE_CURRENCY = normalizeCurrency(process.env.STRIPE_CURRENCY || 'ngn');
 
 /**
  * Minimum top-up / monthly auto-debit floor ≈ ₦100,000 (~USD 72).
@@ -82,9 +88,16 @@ export function getApiBaseUrl(): string {
   ).replace(/\/$/, '');
 }
 
-/** Stripe Dashboard → Developers → Webhooks → endpoint URL */
+/** Stripe Dashboard → Developers → Webhooks → endpoint URL (served on Vercel) */
 export function getStripeWebhookUrl(): string {
-  return `${getApiBaseUrl()}/api/stripe/webhook`;
+  const base = (
+    process.env.STRIPE_WEBHOOK_BASE_URL ||
+    process.env.FRONTEND_URL ||
+    process.env.APP_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    'https://sigmawealthsolution.vercel.app'
+  ).replace(/\/$/, '');
+  return `${base}/api/stripe/webhook`;
 }
 
 export function getStripeSuccessUrl(reference: string): string {
@@ -111,10 +124,13 @@ export function minDepositMajor(currency: string): number {
 }
 
 export function assertMinDepositMajor(amountMajor: number, currency: string): string | null {
-  const min = minDepositMajor(currency);
+  const c = normalizeCurrency(currency);
+  if (!isSupportedPaymentCurrency(c)) {
+    return `Currency ${c.toUpperCase()} is not supported. Use: USD, EUR, GBP, NGN, CAD, AUD, and others.`;
+  }
+  const min = minDepositMajor(c);
   if (!Number.isFinite(amountMajor) || amountMajor < min) {
-    const cur = (currency || 'ngn').toUpperCase();
-    return `Minimum is ${min.toLocaleString()} ${cur} (≈ ₦${MIN_DEPOSIT_NGN.toLocaleString()} / ~$${MIN_DEPOSIT_USD}).`;
+    return `Minimum deposit is ${formatMoney(min, c)} (≈ ${formatMoney(MIN_DEPOSIT_NGN, 'ngn')} / ${formatMoney(MIN_DEPOSIT_USD, 'usd')}).`;
   }
   return null;
 }
@@ -338,7 +354,7 @@ export async function createConnectExpressAccount(params: {
   userId: string;
 }): Promise<string> {
   const stripe = getStripe();
-  const country = String(params.country || 'NG').toUpperCase();
+  const country = String(params.country || 'US').toUpperCase();
   const account = await stripe.accounts.create({
     type: 'express',
     country,
@@ -372,9 +388,22 @@ export async function createConnectOnboardingLink(params: {
   return link.url;
 }
 
+/** Resolve payout currency from Connect account (matches investor's linked bank country). */
+export async function resolveConnectPayoutCurrency(
+  stripeAccountId: string,
+  hint?: string
+): Promise<string> {
+  try {
+    const acct = await getStripe().accounts.retrieve(stripeAccountId);
+    return normalizeCurrency(hint || acct.default_currency || STRIPE_CURRENCY);
+  } catch {
+    return normalizeCurrency(hint || STRIPE_CURRENCY);
+  }
+}
+
 /**
  * Pay investor via Stripe Connect Transfer to their connected account.
- * Connected account then pays out to their bank (ACH / IBAN / local rails Stripe supports for that country).
+ * Connected account pays out to their local bank (ACH, IBAN, SEPA, etc.).
  */
 export async function sendInvestorPayout(params: {
   amountMajor: number;
@@ -382,7 +411,13 @@ export async function sendInvestorPayout(params: {
   stripeAccountId?: string | null;
   description: string;
   metadata?: Record<string, string>;
-}): Promise<{ success: boolean; transferId: string; simulated: boolean; message?: string }> {
+}): Promise<{
+  success: boolean;
+  transferId: string;
+  simulated: boolean;
+  currency?: string;
+  message?: string;
+}> {
   if (!isStripeConfigured()) {
     return {
       success: false,
@@ -398,12 +433,12 @@ export async function sendInvestorPayout(params: {
       transferId: '',
       simulated: false,
       message:
-        'Investor must connect a Stripe payout account (Connect Express). Ask them to complete bank/card onboarding in the dashboard.',
+        'Investor must connect a Stripe payout account (Connect Express). Complete bank onboarding in the dashboard.',
     };
   }
 
   try {
-    const currency = (params.currency || STRIPE_CURRENCY).toLowerCase();
+    const currency = await resolveConnectPayoutCurrency(params.stripeAccountId, params.currency);
     const transfer = await getStripe().transfers.create({
       amount: toMinorUnits(params.amountMajor, currency),
       currency,
@@ -411,7 +446,7 @@ export async function sendInvestorPayout(params: {
       description: params.description.slice(0, 500),
       metadata: params.metadata || {},
     });
-    return { success: true, transferId: transfer.id, simulated: false };
+    return { success: true, transferId: transfer.id, simulated: false, currency };
   } catch (err: any) {
     return {
       success: false,
@@ -458,19 +493,12 @@ export function validatePayoutDestination(d: PayoutDestinationInput): string | n
   return 'Connect Stripe payouts, or provide IBAN / account+BIC for this country';
 }
 
+/** Payouts run through Stripe Connect — connected account required for manual + automatic + referral. */
 export function hasValidPayoutDestination(bank: any): boolean {
-  if (!bank) return false;
-  if (bank.stripe_account_id && bank.connect_onboarding_complete) return true;
-  if (bank.stripe_account_id) return true; // account created; may still need onboarding
-  const country = String(bank.country || 'NG').toUpperCase();
-  if (country === 'US') {
-    return Boolean(bank.routing_number && bank.account_number && bank.account_name);
-  }
-  if (country === 'NG') {
-    return Boolean(bank.account_number && (bank.bank_code || bank.bank_name) && bank.account_name);
-  }
-  return Boolean((bank.iban && String(bank.iban).replace(/\s/g, '').length >= 15) || (bank.account_number && bank.bic));
+  return Boolean(bank?.stripe_account_id);
 }
+
+export { currencyForCountry, formatMoney, isSupportedPaymentCurrency, normalizeCurrency };
 
 export function productionStripeHints() {
   return {
