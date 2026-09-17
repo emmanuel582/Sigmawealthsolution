@@ -35,7 +35,7 @@ export function CaseStudies() {
       link: "Read full story",
     },
     {
-      company: "Aisha M.",
+      company: "Olumide",
       quote:
         "The investor dashboard shows everything clearly — my total investment, next payout date, and transaction history. It's professional and easy to navigate.",
       description: "Dashboard User — Kano",
