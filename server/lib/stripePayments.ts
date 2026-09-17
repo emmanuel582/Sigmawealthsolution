@@ -210,6 +210,8 @@ export async function createCheckoutSession(params: {
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     customer: params.customerId,
+    // Explicit card PM — required for NGN and other non-default currencies on this account
+    payment_method_types: ['card'],
     line_items: [
       {
         quantity: 1,
