@@ -140,7 +140,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
 
       setStripeConfigured(
         Boolean(configData.stripeConfigured) ||
-          Boolean(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith('pk_'))
+          Boolean(configData.stripePublishableKey?.startsWith('pk_'))
       );
       setStripeSimulate(Boolean(configData.stripeSimulate ?? configData.flutterwaveSandbox));
       setBanksList(banks);

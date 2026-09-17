@@ -33,11 +33,15 @@ export async function fetchAppConfig(): Promise<{
     const res = await fetch(`${API_BASE}/config`);
     if (!res.ok) throw new Error('Failed to fetch config');
     const data = await res.json();
+    const publishable =
+      data.stripePublishableKey ||
+      data.publishableKey ||
+      '';
     return {
-      stripeConfigured: Boolean(data.stripeConfigured ?? data.flutterwaveConfigured),
+      stripeConfigured: Boolean(data.stripeConfigured ?? data.flutterwaveConfigured ?? publishable.startsWith('pk_')),
       stripeSimulate: Boolean(data.stripeSimulate),
       stripeTestMode: Boolean(data.stripeTestMode ?? data.flutterwaveSandbox),
-      stripePublishableKey: data.stripePublishableKey || '',
+      stripePublishableKey: publishable,
       flutterwaveConfigured: Boolean(data.stripeConfigured ?? data.flutterwaveConfigured),
       flutterwaveSandbox: Boolean(data.stripeSimulate ?? data.flutterwaveSandbox),
       opayAccountName: data.opayAccountName || '',
