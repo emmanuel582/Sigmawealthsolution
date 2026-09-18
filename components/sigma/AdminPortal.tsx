@@ -369,11 +369,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
   }
 
   const handleTogglePayoutMode = async () => {
-    if (!user || !payoutsData) return
+    if (!adminActor || !payoutsData) {
+      showToast("Admin session required to switch payout mode")
+      return
+    }
     const targetMode = payoutsData.payoutMode === "automatic" ? "manual" : "automatic"
     setTogglingMode(true)
     try {
-      const result = await togglePlatformPayoutMode(targetMode, user.name || user.email || "Admin")
+      const result = await togglePlatformPayoutMode(targetMode, adminActor.name || adminActor.email || "Admin")
       setPayoutsData((prev) => (prev ? { ...prev, payoutMode: result.mode } : prev))
       setOverviewData((prev) =>
         prev
@@ -394,7 +397,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
   }
 
   const handleExecuteManualPay = async () => {
-    if (!user || !manualPayTarget || !manualPayReferenceNote.trim()) {
+    if (!adminActor || !manualPayTarget || !manualPayReferenceNote.trim()) {
       showToast("Add a transfer reference note first.")
       return
     }
@@ -403,7 +406,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
       await executeManualPayout({
         userId: manualPayTarget.userId,
         amount: manualPayTarget.amount,
-        adminName: user.name || user.email || "Admin",
+        adminName: adminActor.name || adminActor.email || "Admin",
         referenceNote: manualPayReferenceNote,
       })
       showToast(`Paid ${formatNaira(manualPayTarget.amount)}`)
@@ -419,7 +422,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
   }
 
   const handleBatchManualPay = async (payAllDue = false) => {
-    if (!user) return
+    if (!adminActor) {
+      showToast("Admin session required")
+      return
+    }
     const note = window.prompt(
       payAllDue
         ? "Reference note for mass payout to ALL due investors:"
@@ -438,7 +444,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
       const result = await executeManualPayoutBatch({
         userIds: payAllDue ? undefined : selectedPayoutIds,
         payAllDue,
-        adminName: user.name || user.email || "Admin",
+        adminName: adminActor.name || adminActor.email || "Admin",
         referenceNote: note.trim(),
       })
       showToast(`Batch done · ${result.paid} paid · ${result.failed} failed`)
@@ -452,10 +458,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
   }
 
   const handleTriggerCronRun = async () => {
-    if (!user) return
+    if (!adminActor) {
+      showToast("Admin session required")
+      return
+    }
     setCronRunning(true)
     try {
-      const result = await triggerScheduledPayoutRun(user.name || user.email || "Admin")
+      const result = await triggerScheduledPayoutRun(adminActor.name || adminActor.email || "Admin")
       setCronResult(result)
       showToast(`Payout run done · ${result.successfulTransfers} successful`)
       await loadAllAdminData()
@@ -698,7 +707,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
   }
 
   const SidebarNav = (
-    <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+    <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto min-h-0">
       {navItems.map((item) => {
         const Icon = item.icon
         const active = activeTab === item.id
@@ -734,9 +743,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
   )
 
   return (
-    <div className="min-h-screen bg-[#edefeb] text-[#163300] flex">
-      <aside className="hidden lg:flex lg:flex-col w-64 bg-[#163300] shrink-0 h-screen sticky top-0">
-        <div className="p-5 border-b border-[#9fe870]/15">
+    <div className="h-[100dvh] overflow-hidden bg-[#edefeb] text-[#163300] flex">
+      <aside className="hidden lg:flex lg:flex-col w-64 bg-[#163300] shrink-0 h-full overflow-hidden">
+        <div className="p-5 border-b border-[#9fe870]/15 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl overflow-hidden bg-black/30 flex items-center justify-center border border-[#9fe870]/30">
               <BrandLogo size={36} className="rounded-lg" />
@@ -748,7 +757,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
           </div>
         </div>
         {SidebarNav}
-        <div className="p-4 border-t border-[#9fe870]/15 space-y-2">
+        <div className="p-4 border-t border-[#9fe870]/15 space-y-2 shrink-0 mt-auto">
           <p className="px-2 text-[10px] font-bold uppercase tracking-wider text-[#9fe870]/45">Admin console</p>
           <button
             type="button"
@@ -810,8 +819,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
         </div>
       )}
 
-      <div className="flex-1 min-w-0 flex flex-col">
-        <header className="sticky top-0 z-30 bg-[#edefeb]/90 backdrop-blur-md border-b border-[#163300]/8 px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+      <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
+        <header className="shrink-0 z-30 bg-[#edefeb]/95 backdrop-blur-md border-b border-[#163300]/8 px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
@@ -822,7 +831,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
             </button>
             <div className="min-w-0">
               <h1 className="text-base sm:text-lg font-black truncate capitalize">{activeTab}</h1>
-              <p className="text-[11px] text-[#163300]/50 truncate">{user?.email}</p>
+              <p className="text-[11px] text-[#163300]/50 truncate">{adminActor?.email || user?.email}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -846,7 +855,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
           </div>
         </header>
 
-        <main className="flex-1 p-4 sm:p-6 space-y-5 max-w-6xl w-full mx-auto">
+        <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-5 max-w-6xl w-full mx-auto pb-10">
           {toastMessage && (
             <div className="rounded-2xl bg-white border border-[#9fe870] px-4 py-3 text-sm flex items-center justify-between shadow-sm">
               <span className="flex items-center gap-2 font-medium">

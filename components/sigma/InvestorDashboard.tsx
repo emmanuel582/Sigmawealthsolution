@@ -31,6 +31,7 @@ import {
   BankItem
 } from '@/lib/sigma/types';
 import { formatNaira, formatDate, maskCardNumber } from '@/lib/sigma/utils';
+import { payoutCountryOptions } from '@/lib/sigma/money';
 import { 
   TrendingUp, 
   CreditCard, 
@@ -231,89 +232,11 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
     cardDetails?.stripe_payment_method_id || cardDetails?.flutterwave_card_token
   );
 
-  const handleVerifyBank = async () => {
-    if (payoutCountry !== 'NG') {
-      setBankError('For US/IBAN destinations, enter the account holder name manually and save.');
-      setTimeout(() => setBankError(null), 4000);
-      return;
-    }
-    if (!accountNumber || accountNumber.length !== 10 || !bankCode) {
-      setBankError('Please provide a valid 10-digit account number and select a bank.');
-      return;
-    }
-    setVerifyingAccount(true);
-    setBankError(null);
-    try {
-      const data = await verifyBankAccount(accountNumber, bankCode);
-      if (data?.account_name) {
-        setAccountName(data.account_name);
-        setBankSuccess('Account verified successfully!');
-        setTimeout(() => setBankSuccess(null), 3000);
-      } else {
-        setBankError('Could not resolve account name. Please check details.');
-      }
-    } catch (err: any) {
-      setBankError(err.message || 'Failed to verify account details.');
-    } finally {
-      setVerifyingAccount(false);
-    }
-  };
-
-  const handleSaveBank = async () => {
-    if (!user) return;
-    const holder = accountName || manualAccountName;
-    if (!holder) {
-      setBankError('Account holder name is required.');
-      return;
-    }
-    if (payoutCountry === 'NG' && (!accountNumber || !bankCode)) {
-      setBankError('Please verify your Nigerian account details before saving.');
-      return;
-    }
-    if (payoutCountry === 'US' && (!routingNumber || !accountNumber)) {
-      setBankError('US routing number (9 digits) and account number are required.');
-      return;
-    }
-    if (payoutCountry !== 'NG' && payoutCountry !== 'US' && !iban && !(accountNumber && bic)) {
-      setBankError('Provide IBAN or account number + BIC/SWIFT.');
-      return;
-    }
-    setSavingBank(true);
-    setBankError(null);
-    try {
-      const selectedBankObj = banksList.find((b) => b.code === bankCode);
-      const saved = await saveBankDetails({
-        userId: user.id,
-        accountNumber: accountNumber || undefined,
-        bankCode: bankCode || undefined,
-        bankName:
-          selectedBankObj?.name ||
-          (payoutCountry === 'US' ? 'US Bank (ACH)' : payoutCountry === 'NG' ? 'Commercial Bank' : 'International bank'),
-        accountName: holder,
-        country: payoutCountry,
-        currency: payoutCountry === 'US' ? 'USD' : payoutCountry === 'NG' ? 'NGN' : 'EUR',
-        routingNumber: routingNumber || undefined,
-        iban: iban || undefined,
-        bic: bic || undefined,
-      });
-      setBankDetails(saved);
-      setBankSuccess('Payout destination saved!');
-      setTimeout(() => {
-        setBankSuccess(null);
-        setShowBankModal(false);
-      }, 1500);
-      await loadData();
-    } catch (err: any) {
-      setBankError(err.message || 'Failed to save bank details.');
-    } finally {
-      setSavingBank(false);
-    }
-  };
-
   const handleConnectPayout = async () => {
     if (!user) return;
     setConnectingPayout(true);
     setActionError(null);
+    setBankError(null);
     try {
       const result = await startStripeConnectOnboarding({
         userId: user.id,
@@ -328,7 +251,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
       setActionError('No onboarding URL returned from Stripe');
     } catch (err: any) {
       setActionError(err.message || 'Could not start Stripe Connect');
-      setTimeout(() => setActionError(null), 5000);
+      setTimeout(() => setActionError(null), 8000);
     } finally {
       setConnectingPayout(false);
     }
@@ -893,81 +816,52 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                     <Building2 className="w-4 h-4 text-[#163300]" />
                     <h3 className="text-sm font-bold text-[#163300]">Payout bank</h3>
                   </div>
-                  {bankDetails ? (
+                  {bankDetails?.stripe_account_id ? (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#9fe870]/40 text-[#163300]">
-                      ACTIVE
+                      {bankDetails.connect_onboarding_complete ? 'READY' : 'PENDING'}
                     </span>
-                  ) : (
-                    <button
-                      onClick={() => setShowBankModal(true)}
-                      className="text-xs font-bold text-[#163300] hover:text-[#9fe870]"
-                    >
-                      Add bank
-                    </button>
-                  )}
+                  ) : null}
                 </div>
 
-                {bankDetails ? (
+                {bankDetails?.stripe_account_id ? (
                   <div className="space-y-3">
                     <div className="p-4 rounded-xl bg-[#edefeb] space-y-2 text-xs">
                       <div className="flex justify-between">
-                        <span className="text-[#163300]/50">Bank</span>
-                        <strong>{bankDetails.bank_name || bankDetails.country || 'Connected'}</strong>
+                        <span className="text-[#163300]/50">Country</span>
+                        <strong>{bankDetails.country || payoutCountry}</strong>
                       </div>
-                      {bankDetails.account_number ? (
-                        <div className="flex justify-between">
-                          <span className="text-[#163300]/50">Account</span>
-                          <strong className="font-mono">{bankDetails.account_number}</strong>
-                        </div>
-                      ) : null}
-                      <div className="flex justify-between border-t border-[#163300]/8 pt-2">
+                      <div className="flex justify-between">
                         <span className="text-[#163300]/50">Name</span>
-                        <span className="font-semibold uppercase text-[11px]">{bankDetails.account_name}</span>
+                        <span className="font-semibold uppercase text-[11px]">
+                          {bankDetails.account_name || user?.name || 'Investor'}
+                        </span>
                       </div>
-                      {bankDetails.stripe_account_id ? (
-                        <p className="text-[10px] text-emerald-700 pt-1">
-                          Stripe Connect {bankDetails.connect_onboarding_complete ? 'ready' : 'pending onboarding'}
-                        </p>
-                      ) : null}
+                      <p className="text-[10px] text-emerald-700 pt-1 border-t border-[#163300]/8">
+                        Stripe Connect linked — returns go to your local bank in {bankDetails.country || 'your country'}.
+                      </p>
                     </div>
-                    <div className="flex flex-wrap gap-3">
-                      <button
-                        onClick={() => setShowBankModal(true)}
-                        className="text-xs font-bold underline text-[#163300]/60"
-                      >
-                        Update bank
-                      </button>
-                      <button
-                        onClick={handleConnectPayout}
-                        disabled={connectingPayout}
-                        className="text-xs font-bold underline text-[#163300]"
-                      >
-                        {connectingPayout ? 'Opening Stripe…' : 'Connect payout with Stripe'}
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => setShowBankModal(true)}
+                      disabled={connectingPayout}
+                      className="w-full px-4 py-2.5 rounded-lg text-xs font-bold bg-[#163300] text-[#9fe870] disabled:opacity-50"
+                    >
+                      {connectingPayout ? 'Opening Stripe…' : 'Update payout bank with Stripe'}
+                    </button>
                   </div>
                 ) : (
                   <div className="p-6 border border-dashed border-[#163300]/15 rounded-xl text-center space-y-3">
                     <Building2 className="w-8 h-8 text-[#163300]/25 mx-auto" />
-                    <p className="text-xs font-semibold">Connect your bank for payouts (all countries)</p>
+                    <p className="text-xs font-semibold">Get paid to your local bank (worldwide)</p>
                     <p className="text-[11px] text-[#163300]/50">
-                      Stripe Connect lets you link NG, US, EU/UK (IBAN) and other supported banks.
+                      Stripe Connect opens a secure flow where you pick your country and link NUBAN, ACH, IBAN, or other local bank details. No manual form.
                     </p>
-                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                      <button
-                        onClick={handleConnectPayout}
-                        disabled={connectingPayout}
-                        className="px-4 py-2 rounded-lg text-xs font-bold bg-[#163300] text-[#9fe870]"
-                      >
-                        {connectingPayout ? 'Opening…' : 'Connect with Stripe'}
-                      </button>
-                      <button
-                        onClick={() => setShowBankModal(true)}
-                        className="px-4 py-2 rounded-lg text-xs font-bold border border-[#163300]/20"
-                      >
-                        Enter details manually
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => setShowBankModal(true)}
+                      disabled={connectingPayout}
+                      className="px-4 py-2 rounded-lg text-xs font-bold bg-[#163300] text-[#9fe870] disabled:opacity-50"
+                    >
+                      {connectingPayout ? 'Opening…' : 'Connect payout bank with Stripe'}
+                    </button>
                   </div>
                 )}
               </div>
@@ -1323,15 +1217,14 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
         </div>
       )}
 
-      {/* ---------------- BANK SETUP MODAL ---------------- */}
+      {/* ---------------- STRIPE CONNECT COUNTRY PICKER ---------------- */}
       {showBankModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 sm:p-8 space-y-5 shadow-2xl border border-slate-200">
-            
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Payout Bank Details</h3>
-                <p className="text-xs text-slate-500">For automated yield disbursements</p>
+                <h3 className="text-lg font-bold text-slate-900">Connect payout bank</h3>
+                <p className="text-xs text-slate-500">Stripe collects your local bank details securely</p>
               </div>
               <button
                 onClick={() => setShowBankModal(false)}
@@ -1347,175 +1240,38 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
               </div>
             )}
 
-            {bankSuccess && (
-              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs">
-                {bankSuccess}
-              </div>
-            )}
-
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Country
+                  Where is your bank?
                 </label>
                 <select
                   value={payoutCountry}
-                  onChange={(e) => {
-                    setPayoutCountry(e.target.value);
-                    setAccountName('');
-                    setManualAccountName('');
-                  }}
+                  onChange={(e) => setPayoutCountry(e.target.value)}
                   className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900"
                 >
-                  <option value="NG">Nigeria (NUBAN)</option>
-                  <option value="US">United States (ACH)</option>
-                  <option value="GB">United Kingdom (IBAN)</option>
-                  <option value="DE">Germany (IBAN)</option>
-                  <option value="FR">France (IBAN)</option>
-                  <option value="CA">Canada (account + BIC)</option>
-                  <option value="AE">UAE (IBAN)</option>
-                  <option value="ZA">South Africa (account + BIC)</option>
-                </select>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Stripe pays banks via Connect / Global Payouts: US routing+account, NG NUBAN, or IBAN elsewhere.
-                </p>
-              </div>
-
-              {payoutCountry === 'NG' ? (
-                <>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Select Bank
-                </label>
-                <select
-                  value={bankCode}
-                  onChange={(e) => {
-                    setBankCode(e.target.value);
-                    setAccountName('');
-                  }}
-                  className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900"
-                >
-                  <option value="">-- Choose Commercial Bank --</option>
-                  {banksList.map((b, idx) => (
-                    <option key={`${b.code}-${idx}`} value={b.code}>
-                      {b.name}
+                  {payoutCountryOptions().map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.label}
                     </option>
                   ))}
                 </select>
+                <p className="text-[11px] text-slate-500 mt-2">
+                  Next you finish Stripe Connect and link NUBAN / ACH / IBAN / local bank details for that country. Weekly returns then go to your account automatically.
+                </p>
               </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  10-Digit NUBAN Account Number
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    maxLength={10}
-                    value={accountNumber}
-                    onChange={(e) => {
-                      setAccountNumber(e.target.value.replace(/\D/g, ''));
-                      setAccountName('');
-                    }}
-                    placeholder="0123456789"
-                    className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-sm font-mono text-slate-900 focus:ring-2 focus:ring-slate-900"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleVerifyBank}
-                    disabled={verifyingAccount || accountNumber.length !== 10 || !bankCode}
-                    className="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition disabled:opacity-40 shrink-0"
-                  >
-                    {verifyingAccount ? 'Verifying...' : 'Verify'}
-                  </button>
-                </div>
-              </div>
-                </>
-              ) : payoutCountry === 'US' ? (
-                <>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Routing number</label>
-                    <input
-                      type="text"
-                      maxLength={9}
-                      value={routingNumber}
-                      onChange={(e) => setRoutingNumber(e.target.value.replace(/\D/g, ''))}
-                      placeholder="9-digit ABA routing"
-                      className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-sm font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Account number</label>
-                    <input
-                      type="text"
-                      value={accountNumber}
-                      onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))}
-                      placeholder="Account number"
-                      className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-sm font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Account holder name</label>
-                    <input
-                      type="text"
-                      value={manualAccountName}
-                      onChange={(e) => setManualAccountName(e.target.value)}
-                      placeholder="Full legal name"
-                      className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-sm"
-                    />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">IBAN</label>
-                    <input
-                      type="text"
-                      value={iban}
-                      onChange={(e) => setIban(e.target.value.toUpperCase())}
-                      placeholder="IBAN"
-                      className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-sm font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">BIC / SWIFT (optional if IBAN)</label>
-                    <input
-                      type="text"
-                      value={bic}
-                      onChange={(e) => setBic(e.target.value.toUpperCase())}
-                      placeholder="BIC"
-                      className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-sm font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Account holder name</label>
-                    <input
-                      type="text"
-                      value={manualAccountName}
-                      onChange={(e) => setManualAccountName(e.target.value)}
-                      placeholder="Full legal name"
-                      className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-sm"
-                    />
-                  </div>
-                </>
-              )}
-
-              {(accountName || (payoutCountry !== 'NG' && manualAccountName)) && (
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                  <span className="text-[11px] text-slate-500 block">Account Name:</span>
-                  <span className="font-bold text-sm text-slate-900 uppercase">{accountName || manualAccountName}</span>
-                </div>
-              )}
 
               <button
-                onClick={handleSaveBank}
-                disabled={savingBank || !(accountName || manualAccountName)}
-                className="w-full py-3 rounded-xl text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-500 transition disabled:opacity-40"
+                onClick={async () => {
+                  setShowBankModal(false);
+                  await handleConnectPayout();
+                }}
+                disabled={connectingPayout}
+                className="w-full py-3 rounded-xl text-sm font-bold bg-[#163300] text-[#9fe870] hover:opacity-95 transition disabled:opacity-40"
               >
-                {savingBank ? 'Saving Bank Details...' : 'Save Payout Bank Destination'}
+                {connectingPayout ? 'Opening Stripe…' : 'Continue with Stripe Connect'}
               </button>
             </div>
-
           </div>
         </div>
       )}

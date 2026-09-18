@@ -45,7 +45,7 @@ const nextConfig = {
           "style-src 'self' 'unsafe-inline'",
           "img-src 'self' data: blob: https:",
           "font-src 'self' data:",
-          "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com https://oauth2.googleapis.com http://127.0.0.1:4000 http://localhost:4000 https://*.onrender.com https://*.vercel.app https://api.stripe.com https://checkout.stripe.com",
+          "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com https://oauth2.googleapis.com http://127.0.0.1:4000 http://localhost:4000 https://*.onrender.com https://*.vercel.app https://sigmawealthsolution.com https://*.sigmawealthsolution.com https://api.stripe.com https://checkout.stripe.com",
           "frame-src 'self' https://accounts.google.com https://*.supabase.co https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com",
           "frame-ancestors 'none'",
           "base-uri 'self'",

@@ -345,9 +345,29 @@ export function cardBrandLast4FromPaymentMethod(pm: Stripe.PaymentMethod | strin
 }
 
 /**
- * Create Stripe Connect Express account for investor payouts (bank in their country).
- * Investor completes onboarding via Account Link (adds bank / debit card where supported).
+ * Create a Connect account so investors receive payouts to their local bank worldwide.
+ *
+ * - Same-region (EEA) Express with full agreement when possible
+ * - Cross-border (e.g. FI platform → NG/US/GB/…) uses recipient service agreement
+ *   so Stripe can collect local bank details during hosted onboarding
+ *
+ * Docs: https://docs.stripe.com/connect/service-agreement-types
+ *       https://docs.stripe.com/connect/express-accounts
  */
+const EEA_COUNTRIES = new Set([
+  'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU',
+  'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE',
+]);
+
+function needsRecipientAgreement(investorCountry: string, platformCountry?: string | null): boolean {
+  const c = investorCountry.toUpperCase();
+  const platform = (platformCountry || 'FI').toUpperCase();
+  if (c === platform) return false;
+  // Cross-border outside shared EEA acquiring usually needs recipient agreement
+  if (EEA_COUNTRIES.has(c) && EEA_COUNTRIES.has(platform)) return false;
+  return true;
+}
+
 export async function createConnectExpressAccount(params: {
   email: string;
   country: string;
@@ -355,22 +375,94 @@ export async function createConnectExpressAccount(params: {
 }): Promise<string> {
   const stripe = getStripe();
   const country = String(params.country || 'US').toUpperCase();
-  const account = await stripe.accounts.create({
-    type: 'express',
+
+  const platform = await stripe.accounts.retrieve();
+  if (!platform.charges_enabled) {
+    throw new Error(
+      'Your Stripe platform must finish Activate Payments before investors can connect payout banks. Open https://dashboard.stripe.com/account/onboarding'
+    );
+  }
+
+  const recipient = needsRecipientAgreement(country, platform.country);
+  const common = {
     country,
     email: params.email,
+    business_type: 'individual' as const,
     capabilities: {
-      transfers: { requested: true },
+      transfers: { requested: true as const },
     },
-    business_type: 'individual',
-    metadata: { userId: params.userId },
+    metadata: {
+      userId: params.userId,
+      purpose: 'investor_local_bank_payout',
+      country,
+    },
     settings: {
       payouts: {
-        schedule: { interval: 'manual' },
+        schedule: { interval: 'manual' as const },
       },
     },
-  });
-  return account.id;
+    business_profile: {
+      product_description: 'Weekly investment return payouts from SigmawealthSolution',
+      url: getFrontendBaseUrl(),
+    },
+  };
+
+  try {
+    if (recipient) {
+      // Cross-border payouts (NG, US, UK, Africa, Asia, …) from an EEA platform
+      const account = await stripe.accounts.create({
+        ...common,
+        tos_acceptance: { service_agreement: 'recipient' },
+        controller: {
+          fees: { payer: 'application' },
+          losses: { payments: 'application' },
+          requirement_collection: 'stripe',
+          stripe_dashboard: { type: 'express' },
+        },
+      });
+      return account.id;
+    }
+
+    const account = await stripe.accounts.create({
+      ...common,
+      type: 'express',
+    });
+    return account.id;
+  } catch (primaryErr: any) {
+    const msg = String(primaryErr?.message || primaryErr || '');
+    // Fallback: let Stripe hosted onboarding pick country (still Express)
+    if (/country|not supported|invalid/i.test(msg)) {
+      try {
+        const account = await stripe.accounts.create({
+          type: 'express',
+          email: params.email,
+          business_type: 'individual',
+          capabilities: { transfers: { requested: true } },
+          metadata: {
+            userId: params.userId,
+            purpose: 'investor_local_bank_payout',
+            preferred_country: country,
+          },
+          settings: { payouts: { schedule: { interval: 'manual' } } },
+          business_profile: {
+            product_description: 'Weekly investment return payouts from SigmawealthSolution',
+            url: getFrontendBaseUrl(),
+          },
+        });
+        return account.id;
+      } catch (fallbackErr: any) {
+        throw new Error(
+          fallbackErr?.message ||
+            msg ||
+            `Stripe could not create a payout account for ${country}. In Stripe Dashboard → Settings → Connect, enable that country for Express/recipient onboarding.`
+        );
+      }
+    }
+    throw new Error(
+      msg ||
+        `Stripe could not create a payout account for ${country}. Enable the country under Connect settings, then retry.`
+    );
+  }
 }
 
 export async function createConnectOnboardingLink(params: {
