@@ -12,6 +12,10 @@ interface AuthPageProps {
   onNavigate: (view: string) => void;
 }
 
+type Mode = 'login' | 'signup' | 'forgot';
+
+const toMode = (m?: string): Mode => (m === 'signup' ? 'signup' : m === 'forgot' ? 'forgot' : 'login');
+
 const pillInput =
   'w-full h-[48px] pl-11 pr-11 rounded-full bg-white text-[#163300] text-sm placeholder:text-[#163300]/40 border border-[#163300]/8 shadow-[0_2px_12px_rgba(22,51,0,0.04)] focus:outline-none focus:ring-2 focus:ring-[#9fe870] focus:border-[#9fe870]/50 transition-all duration-200';
 
@@ -49,9 +53,9 @@ function AuthHeroPanel() {
 }
 
 export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNavigate }) => {
-  const { signInWithEmail, signUpWithEmail, signInWithGoogle, resetPassword, isLoading } = useAuth();
+  const { signInWithEmail, signUpWithEmail, signInWithGoogle, isLoading } = useAuth();
 
-  const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>(initialMode);
+  const [mode, setMode] = useState<Mode>(toMode(initialMode));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -66,7 +70,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    setMode(initialMode);
+    setMode(toMode(initialMode));
   }, [initialMode]);
 
   const handleGoogleSignIn = async () => {
@@ -80,26 +84,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
     }
   };
 
-  const handleAppleSignIn = async () => {
-    setErrorMessage(null);
-    setSubmitting(true);
-    try {
-      if (isSupabaseConfigured) {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: 'apple',
-          options: { redirectTo: `${window.location.origin}/#/dashboard` },
-        });
-        if (error) throw error;
-      } else {
-        setErrorMessage('Apple sign-in requires Supabase configuration.');
-        setSubmitting(false);
-      }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Apple sign-in is not available yet.');
-      setSubmitting(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -107,7 +91,18 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
     setSubmitting(true);
 
     try {
-      if (mode === 'login') {
+      if (mode === 'forgot') {
+        if (!isSupabaseConfigured) {
+          setErrorMessage('Password reset requires Supabase configuration.');
+        } else {
+          const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+            redirectTo: `${window.location.origin}/auth/reset-password`,
+          });
+          if (error) throw error;
+          // Same message whether or not the email exists (doesn't leak which emails are registered)
+          setSuccessMessage('If an account exists for that email, a reset link is on its way. Check your inbox and spam folder.');
+        }
+      } else if (mode === 'login') {
         const result = await signInWithEmail(email, password);
         if (result.success) {
           if (rememberMe) localStorage.setItem('apex_remember_email', email);
@@ -138,12 +133,18 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
           return;
         }
         const result = await signUpWithEmail(email, password, fullName, phone, agreedToTerms);
-        if (result.success) onNavigate('dashboard');
-        else setErrorMessage(result.error || 'Failed to create your account.');
-      } else if (mode === 'forgot') {
-        const result = await resetPassword(email);
-        if (result.success) setSuccessMessage(result.message || 'Reset instructions sent to your email.');
-        else setErrorMessage(result.error || 'Failed to send reset instructions.');
+        if (result.success && result.needsConfirmation) {
+          // Email confirmation is on, so there is no session yet.
+          // Send them to login with a clear message instead of the dashboard.
+          setPassword('');
+          setConfirmPassword('');
+          setMode('login');
+          setSuccessMessage('Account created. Check your email to confirm it, then log in.');
+        } else if (result.success) {
+          onNavigate('dashboard');
+        } else {
+          setErrorMessage(result.error || 'Failed to create your account.');
+        }
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'An unexpected error occurred.');
@@ -152,12 +153,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
     }
   };
 
-  const switchMode = (newMode: 'login' | 'signup' | 'forgot') => {
+  const switchMode = (newMode: Mode) => {
     setMode(newMode);
     setErrorMessage(null);
     setSuccessMessage(null);
     if (newMode === 'login') onNavigate('auth-login');
     else if (newMode === 'signup') onNavigate('auth-signup');
+    // 'forgot' is handled locally so it works regardless of your route names
   };
 
   useEffect(() => {
@@ -168,10 +170,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
     }
   }, []);
 
-  const headings = {
+  const headings: Record<Mode, { title: string; sub: string }> = {
     login: { title: 'Welcome Back', sub: 'Access your portfolio and manage your structured investments.' },
     signup: { title: 'Create Your Account', sub: 'Join thousands of investors building wealth through disciplined cycles.' },
-    forgot: { title: 'Reset Password', sub: "Enter your email and we'll send recovery instructions." },
+    forgot: { title: 'Reset Your Password', sub: "Enter your account email and we'll send you a link to set a new password." },
   };
 
   const { title, sub } = headings[mode];
@@ -225,14 +227,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
           />
           <span className="text-xs text-[#163300]/60 font-medium">Remember me</span>
         </label>
-        <motion.button
+        <button
           type="button"
-          whileTap={{ scale: 0.95 }}
+          id="auth-forgot-link"
           onClick={() => switchMode('forgot')}
-          className="text-xs font-semibold text-[#163300] hover:text-[#9fe870] transition-colors"
+          className="text-xs font-bold text-[#163300] hover:text-[#9fe870] transition-colors"
         >
           Forgot password?
-        </motion.button>
+        </button>
       </div>
 
       <PressableButton
@@ -249,6 +251,42 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
           </>
         ) : (
           <span>Login</span>
+        )}
+      </PressableButton>
+    </form>
+  );
+
+  /* ─────────────────────────── FORGOT FORM ─────────────────────────── */
+  const forgotForm = (
+    <form onSubmit={handleSubmit} className="space-y-3.5">
+      <div className="relative">
+        <AppIcon name="mail" className="w-4 h-4 text-[#163300]/35 absolute left-4 top-1/2 -translate-y-1/2 z-10" />
+        <input
+          id="forgot-email"
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Enter your email"
+          className={pillInput}
+          autoComplete="email"
+        />
+      </div>
+
+      <PressableButton
+        type="submit"
+        id="forgot-submit-btn"
+        disabled={submitting || isLoading}
+        fullWidth
+        className="!h-[48px] !rounded-full !text-[#9fe870] mt-1"
+      >
+        {submitting ? (
+          <>
+            <AppIcon name="refresh" className="w-4 h-4" spin />
+            <span>Please wait...</span>
+          </>
+        ) : (
+          <span>Send reset link</span>
         )}
       </PressableButton>
     </form>
@@ -381,44 +419,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
     </form>
   );
 
-  /* ──────────────────────── FORGOT FORM ──────────────────────── */
-  const forgotForm = (
-    <form onSubmit={handleSubmit} className="space-y-3.5">
-      <div className="relative">
-        <AppIcon name="mail" className="w-4 h-4 text-[#163300]/35 absolute left-4 top-1/2 -translate-y-1/2 z-10" />
-        <input
-          id="auth-email"
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Enter your email"
-          className={pillInput}
-          autoComplete="email"
-        />
-      </div>
-
-      <PressableButton
-        type="submit"
-        id="auth-submit-btn"
-        disabled={submitting || isLoading}
-        fullWidth
-        className="!h-[48px] !rounded-full !text-[#9fe870] mt-1"
-      >
-        {submitting ? (
-          <>
-            <AppIcon name="refresh" className="w-4 h-4" spin />
-            <span>Please wait...</span>
-          </>
-        ) : (
-          <span>Send Reset Link</span>
-        )}
-      </PressableButton>
-    </form>
-  );
-
   /* Google OAuth — login & signup (Supabase) */
-  const socialButtons = mode !== 'forgot' && (
+  const socialButtons = (
     <>
       <div className="relative my-5">
         <div className="absolute inset-0 flex items-center">
@@ -455,7 +457,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
       {mode === 'login' && (
         <>
           Don&apos;t have an account?{' '}
-          <button id="auth-toggle-signup" onClick={() => switchMode('signup')} className="font-bold text-[#163300] hover:text-[#9fe870] transition-colors">
+          <button type="button" id="auth-toggle-signup" onClick={() => switchMode('signup')} className="font-bold text-[#163300] hover:text-[#9fe870] transition-colors">
             Sign up
           </button>
         </>
@@ -463,15 +465,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
       {mode === 'signup' && (
         <>
           Already have an account?{' '}
-          <button id="auth-toggle-login" onClick={() => switchMode('login')} className="font-bold text-[#163300] hover:text-[#9fe870] transition-colors">
+          <button type="button" id="auth-toggle-login" onClick={() => switchMode('login')} className="font-bold text-[#163300] hover:text-[#9fe870] transition-colors">
             Login
           </button>
         </>
       )}
       {mode === 'forgot' && (
         <>
-          Remembered your password?{' '}
-          <button onClick={() => switchMode('login')} className="font-bold text-[#163300] hover:text-[#9fe870] transition-colors">
+          Remembered it?{' '}
+          <button type="button" id="auth-forgot-back" onClick={() => switchMode('login')} className="font-bold text-[#163300] hover:text-[#9fe870] transition-colors">
             Back to login
           </button>
         </>
@@ -534,8 +536,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
           {mode === 'signup' && signupForm}
           {mode === 'forgot' && forgotForm}
 
-          {/* Social */}
-          {socialButtons}
+          {/* Social (not shown while resetting a password) */}
+          {mode !== 'forgot' && socialButtons}
 
           {/* Mode toggle */}
           {modeToggle}
