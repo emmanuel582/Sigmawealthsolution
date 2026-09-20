@@ -15,18 +15,11 @@ export default function AboutPage() {
       avatar: "/images/nigeria/pexels-ansey-20513318.jpg",
     },
     {
-      name: "Jerry",
+      name: "Adeife",
       role: "App Developer",
       description:
         "Builds and maintains the investor and admin portals, payment integrations, and a smooth experience across devices.",
       avatar: "/images/nigeria/pexels-praise-nnadozie-1081270006-39462601.jpg",
-    },
-    {
-      name: "Bismark Enoch",
-      role: "UI/UX & Frontend",
-      description:
-        "Designs and develops the SigmawealthSolution experience so investing feels clear, trustworthy, and mobile-friendly.",
-      avatar: "/images/nigeria/pexels-dboyag-12477590.jpg",
     },
   ]
 
@@ -117,7 +110,7 @@ export default function AboutPage() {
               <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-center text-[#163300] mb-8">
                 Our Team
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 max-w-xl mx-auto">
                 {teamMembers.map((member) => (
                   <motion.div
                     key={member.name}
