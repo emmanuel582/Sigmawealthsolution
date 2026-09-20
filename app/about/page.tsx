@@ -8,7 +8,7 @@ import { motion } from "framer-motion"
 export default function AboutPage() {
   const teamMembers = [
     {
-      name: "Darasimi",
+      name: "Demilade",
       role: "Product & Investment Systems",
       description:
         "Leads product vision, investment workflows, payout automation, and the systems that keep investor returns on schedule.",
