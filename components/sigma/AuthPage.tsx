@@ -20,7 +20,7 @@ const pillInput =
   'w-full h-[48px] pl-11 pr-11 rounded-full bg-white text-[#163300] text-sm placeholder:text-[#163300]/40 border border-[#163300]/8 shadow-[0_2px_12px_rgba(22,51,0,0.04)] focus:outline-none focus:ring-2 focus:ring-[#9fe870] focus:border-[#9fe870]/50 transition-all duration-200';
 
 /* ── Right Hero Panel ── */
-function AuthHeroPanel() {
+export function AuthHeroPanel() {
   return (
     <div className="relative w-full h-[calc(100vh-3rem)] max-h-[820px] min-h-[520px] rounded-[2rem] overflow-hidden shadow-2xl bg-[#163300]">
       <Image
