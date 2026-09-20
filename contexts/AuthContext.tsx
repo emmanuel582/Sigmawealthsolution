@@ -5,6 +5,11 @@ import { supabase, isSupabaseConfigured } from '@/lib/sigma/supabaseClient';
 import { UserRole, Profile } from '@/lib/sigma/types';
 import { checkAdminAccess } from '@/lib/sigma/api';
 
+// Server-side fallback auth (/api/auth/*) is for local development only.
+// In production, Supabase is the single source of truth so accounts persist.
+const ALLOW_SERVER_FALLBACK = process.env.NODE_ENV !== 'production';
+const NOT_CONFIGURED_ERROR = 'Authentication is not configured. Please contact support.';
+
 interface UserSession {
   id: string;
   email: string;
@@ -16,8 +21,17 @@ interface AuthContextType {
   role: UserRole;
   profile: Profile | null;
   isLoading: boolean;
-  signInWithEmail: (email: string, pass: string) => Promise<{ success: boolean; error?: string; role?: UserRole }>;
-  signUpWithEmail: (email: string, pass: string, fullName: string, phone: string, agreedToTerms: boolean) => Promise<{ success: boolean; error?: string }>;
+  signInWithEmail: (
+    email: string,
+    pass: string
+  ) => Promise<{ success: boolean; error?: string; role?: UserRole }>;
+  signUpWithEmail: (
+    email: string,
+    pass: string,
+    fullName: string,
+    phone: string,
+    agreedToTerms: boolean
+  ) => Promise<{ success: boolean; error?: string; needsConfirmation?: boolean }>;
   signInWithGoogle: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   signOut: () => Promise<void>;
@@ -26,10 +40,44 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function readReferralCode(): string | undefined {
+  try {
+    if (typeof document !== 'undefined') {
+      const raw = document.cookie
+        .split('; ')
+        .find((c) => c.startsWith('sigma_ref='))
+        ?.split('=')[1];
+      if (raw) return decodeURIComponent(raw);
+    }
+    if (typeof localStorage !== 'undefined') {
+      const stored = localStorage.getItem('sigma_ref');
+      if (stored) return stored;
+    }
+  } catch {
+    // ignore storage/cookie access errors
+  }
+  return undefined;
+}
+
+function friendlyAuthError(message?: string): string {
+  const msg = (message || '').toLowerCase();
+  if (msg.includes('invalid login credentials')) return 'Invalid email or password.';
+  if (msg.includes('email not confirmed')) {
+    return 'Please confirm your email first. Check your inbox for the confirmation link.';
+  }
+  if (msg.includes('already') && msg.includes('registered')) {
+    return 'An account with this email already exists. Please log in.';
+  }
+  if (msg.includes('rate limit')) return 'Too many attempts. Please wait a minute and try again.';
+  return message || 'Something went wrong. Please try again.';
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserSession | null>(null);
   const [role, setRole] = useState<UserRole>('investor');
   const [profile, setProfile] = useState<Profile | null>(null);
+  // Global loading is for app startup and sign-out only.
+  // Form submits use their own local "submitting" state in AuthPage.
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Synchronize state with Supabase Auth or Session
@@ -45,7 +93,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const userData: UserSession = {
       id: sessionUser.id,
       email: (sessionUser.email || '').toLowerCase().trim(),
-      name: sessionUser.user_metadata?.full_name || sessionUser.user_metadata?.name || sessionUser.name || sessionUser.email?.split('@')[0] || 'Investor',
+      name:
+        sessionUser.user_metadata?.full_name ||
+        sessionUser.user_metadata?.name ||
+        sessionUser.name ||
+        sessionUser.email?.split('@')[0] ||
+        'Investor',
     };
     setUser(userData);
 
@@ -86,75 +139,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    let mounted = true
-    let authSubscription: { unsubscribe: () => void } | null = null
+    let mounted = true;
+    let authSubscription: { unsubscribe: () => void } | null = null;
 
-    // Failsafe only — keep loader up until real auth init finishes (avoids landing flash)
+    // Failsafe only — keep loader up until real auth init finishes
     const timeoutId = setTimeout(() => {
-      if (mounted) setIsLoading(false)
-    }, 10000)
+      if (mounted) setIsLoading(false);
+    }, 10000);
 
     async function initAuth() {
       try {
         if (isSupabaseConfigured) {
           const {
             data: { session },
-          } = await supabase.auth.getSession()
-          if (!mounted) return
+          } = await supabase.auth.getSession();
+          if (!mounted) return;
 
           if (session?.user) {
-            await syncUserState(session.user)
+            await syncUserState(session.user);
           } else {
-            const res = await fetch("/api/auth/current-session")
-            if (!mounted) return
-            if (res.ok) {
-              const data = await res.json()
-              if (data.user) {
-                await syncUserState(data.user)
-              } else {
-                setIsLoading(false)
-              }
-            } else {
-              setIsLoading(false)
-            }
+            setIsLoading(false);
           }
 
-          const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
-            if (mounted) {
-              await syncUserState(nextSession?.user ?? null)
-            }
-          })
-          authSubscription = authListener?.subscription ?? null
-        } else {
-          const res = await fetch("/api/auth/current-session")
-          if (!mounted) return
+          const { data: authListener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+            if (!mounted) return;
+            // INITIAL_SESSION is already handled by getSession above.
+            // TOKEN_REFRESHED does not change who the user is.
+            if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') return;
+            // Defer so we never await other Supabase calls inside the callback (can deadlock).
+            setTimeout(() => {
+              if (mounted) syncUserState(nextSession?.user ?? null);
+            }, 0);
+          });
+          authSubscription = authListener?.subscription ?? null;
+        } else if (ALLOW_SERVER_FALLBACK) {
+          const res = await fetch('/api/auth/current-session');
+          if (!mounted) return;
           if (res.ok) {
-            const data = await res.json()
+            const data = await res.json();
             if (data.user) {
-              await syncUserState(data.user)
+              await syncUserState(data.user);
             } else {
-              setIsLoading(false)
+              setIsLoading(false);
             }
           } else {
-            setIsLoading(false)
+            setIsLoading(false);
           }
+        } else {
+          console.error(NOT_CONFIGURED_ERROR);
+          setIsLoading(false);
         }
       } catch (e) {
-        console.warn("Auth init check error:", e)
-        if (mounted) setIsLoading(false)
+        console.warn('Auth init check error:', e);
+        if (mounted) setIsLoading(false);
       } finally {
-        clearTimeout(timeoutId)
+        clearTimeout(timeoutId);
       }
     }
 
-    initAuth()
+    initAuth();
 
     return () => {
-      mounted = false
-      clearTimeout(timeoutId)
-      authSubscription?.unsubscribe()
-    }
-  }, [])
+      mounted = false;
+      clearTimeout(timeoutId);
+      authSubscription?.unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const refreshProfile = async () => {
     if (!user) return;
@@ -170,28 +221,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithEmail = async (email: string, pass: string) => {
-    setIsLoading(true);
     const cleanEmail = email.trim().toLowerCase();
     try {
-      // 1. Try Supabase Auth if configured
       if (isSupabaseConfigured) {
-        try {
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email: cleanEmail,
-            password: pass,
-          });
-          if (!error && data?.user) {
-            const isAdmin = await checkAdminAccess(data.user.id, cleanEmail);
-            const userRole: UserRole = isAdmin ? 'admin' : 'investor';
-            await syncUserState(data.user, userRole);
-            return { success: true, role: userRole };
-          }
-        } catch (supaErr) {
-          console.warn('Supabase sign in returned error, attempting server fallback:', supaErr);
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password: pass,
+        });
+        if (error || !data?.user) {
+          return { success: false, error: friendlyAuthError(error?.message) };
         }
+
+        let userRole: UserRole = 'investor';
+        try {
+          const isAdmin = await checkAdminAccess(data.user.id, cleanEmail);
+          userRole = isAdmin ? 'admin' : 'investor';
+        } catch (e) {
+          console.warn('Admin check failed, defaulting to investor:', e);
+        }
+        await syncUserState(data.user, userRole);
+        return { success: true, role: userRole };
       }
 
-      // 2. Seamless server fallback authentication
+      // Not configured: dev-only server fallback
+      if (!ALLOW_SERVER_FALLBACK) {
+        return { success: false, error: NOT_CONFIGURED_ERROR };
+      }
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -202,7 +257,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await syncUserState(data.user, data.role as UserRole);
       return { success: true, role: data.role as UserRole };
     } catch (err: any) {
-      setIsLoading(false);
       return { success: false, error: err.message || 'Invalid email or password.' };
     }
   };
@@ -217,16 +271,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!agreedToTerms) {
       return { success: false, error: 'You must agree to the Terms and Conditions to register.' };
     }
-    setIsLoading(true);
     const cleanEmail = email.trim().toLowerCase();
-    const referralCode =
-      (typeof document !== 'undefined' &&
-        document.cookie
-          .split('; ')
-          .find((c) => c.startsWith('sigma_ref='))
-          ?.split('=')[1]) ||
-      (typeof localStorage !== 'undefined' ? localStorage.getItem('sigma_ref') : null) ||
-      undefined;
+    const referralCode = readReferralCode();
 
     try {
       if (isSupabaseConfigured) {
@@ -243,13 +289,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
 
         if (error) {
-          const msg = (error.message || '').toLowerCase();
-          if (msg.includes('already') || msg.includes('registered')) {
-            setIsLoading(false);
-            return { success: false, error: 'An account with this email already exists. Please log in.' };
-          }
-          console.warn('Supabase sign up error, attempting server fallback:', error.message);
-        } else if (data?.user) {
+          return { success: false, error: friendlyAuthError(error.message) };
+        }
+
+        // With email confirmation on, Supabase does NOT return an error for an
+        // existing email. It returns a fake user with an empty identities array.
+        if (!data.user || (data.user.identities && data.user.identities.length === 0)) {
+          return {
+            success: false,
+            error: 'An account with this email already exists. Please log in.',
+          };
+        }
+
+        // Create the investor profile (non-fatal if it fails; profile is also created on first load)
+        try {
           await fetch('/api/investor/register-profile', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -261,50 +314,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               referralCode,
             }),
           });
-
-          if (data.session?.user) {
-            await syncUserState(data.session.user, 'investor');
-            return { success: true };
-          }
-
-          const { data: signedIn, error: signInErr } = await supabase.auth.signInWithPassword({
-            email: cleanEmail,
-            password: pass,
-          });
-          if (!signInErr && signedIn?.user) {
-            await syncUserState(signedIn.user, 'investor');
-            return { success: true };
-          }
-
-          // Account created; allow server session so UX still works if email confirm is on
-          const res = await fetch('/api/auth/signup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: cleanEmail,
-              password: pass,
-              fullName,
-              phone,
-              agreedToTerms,
-              referralCode,
-              supabaseUserId: data.user.id,
-            }),
-          });
-          if (res.ok) {
-            const payload = await res.json();
-            await syncUserState(payload.user, 'investor');
-            return { success: true };
-          }
-
-          setIsLoading(false);
-          return {
-            success: false,
-            error: 'Account created. Confirm your email if required, then log in.',
-          };
+        } catch (e) {
+          console.warn('register-profile failed:', e);
         }
+
+        if (data.session?.user) {
+          await syncUserState(data.session.user, 'investor');
+          return { success: true };
+        }
+
+        // Email confirmation is enabled: no session until they confirm.
+        return { success: true, needsConfirmation: true };
       }
 
-      // Fallback server signup
+      // Not configured: dev-only server fallback
+      if (!ALLOW_SERVER_FALLBACK) {
+        return { success: false, error: NOT_CONFIGURED_ERROR };
+      }
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -322,14 +348,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await syncUserState(data.user, 'investor');
       return { success: true };
     } catch (err: any) {
-      setIsLoading(false);
       return { success: false, error: err.message || 'Failed to create account.' };
     }
   };
 
   const signInWithGoogle = async () => {
     if (!isSupabaseConfigured) {
-      throw new Error('Google sign-in requires Supabase. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+      throw new Error(
+        'Google sign-in requires Supabase. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.'
+      );
     }
     const redirectTo = `${window.location.origin}/auth/callback`;
     const { error } = await supabase.auth.signInWithOAuth({
@@ -349,14 +376,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetPassword = async (email: string) => {
+    const cleanEmail = email.trim().toLowerCase();
     try {
       if (isSupabaseConfigured) {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
           redirectTo: `${window.location.origin}/auth?mode=update-password`,
         });
         if (error) throw error;
       }
-      return { success: true, message: `Password reset instructions have been dispatched to ${email}.` };
+      return {
+        success: true,
+        message: `If an account exists for ${cleanEmail}, password reset instructions have been sent.`,
+      };
     } catch (err: any) {
       return { success: false, error: err.message || 'Failed to send password reset link.' };
     }
