@@ -12,21 +12,21 @@ export default function AboutPage() {
       role: "Product & Investment Systems",
       description:
         "Leads product vision, investment workflows, payout automation, and the systems that keep investor returns on schedule.",
-      avatar: "/images/darasimi.jpg",
+      avatar: "/images/nigeria/pexels-ansey-20513318.jpg",
     },
     {
       name: "Jerry",
       role: "App Developer",
       description:
         "Builds and maintains the investor and admin portals, payment integrations, and a smooth experience across devices.",
-      avatar: "/images/jerry.jpg",
+      avatar: "/images/nigeria/pexels-praise-nnadozie-1081270006-39462601.jpg",
     },
     {
       name: "Bismark Enoch",
       role: "UI/UX & Frontend",
       description:
         "Designs and develops the SigmawealthSolution experience so investing feels clear, trustworthy, and mobile-friendly.",
-      avatar: "/images/enoch.jpg",
+      avatar: "/images/nigeria/pexels-dboyag-12477590.jpg",
     },
   ]
 
