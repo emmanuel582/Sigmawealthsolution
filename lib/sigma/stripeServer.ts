@@ -43,14 +43,18 @@ function isUuid(id: string) {
 
 export function publicStripeConfig() {
   const hints = productionStripeHints()
+  const secretPresent = isStripeConfigured()
+  const publishable = getStripePublishableKey() || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''
   return {
-    stripeConfigured: isStripeConfigured(),
+    stripeConfigured: secretPresent,
     stripeLive: isStripeLiveMode(),
     stripeSimulate: false,
     stripeTestMode: isStripeTestMode(),
-    stripePublishableKey: getStripePublishableKey() || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '',
+    stripePublishableKey: publishable,
     stripeCurrency: FRONTEND_CURRENCY,
-    flutterwaveConfigured: isStripeConfigured(),
+    stripeSecretPresent: secretPresent,
+    stripePublishablePresent: Boolean(publishable.startsWith('pk_')),
+    flutterwaveConfigured: secretPresent,
     flutterwaveSandbox: false,
     opayAccountName: process.env.OPAY_ACCOUNT_NAME || 'SigmawealthSolution',
     opayAccountNumber: process.env.OPAY_ACCOUNT_NUMBER || '',

@@ -1165,10 +1165,19 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                 />
               </div>
 
+              {!stripeConfigured && (
+                <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                  Stripe keys are not loaded on the server yet. In Vercel → Environment Variables confirm{' '}
+                  <strong>STRIPE_SECRET_KEY</strong> and <strong>STRIPE_PUBLISHABLE_KEY</strong>, then Redeploy
+                  Production.
+                </p>
+              )}
+
               <button
+                type="button"
                 onClick={() => handleStripePayment({ recurring: paymentTab === 'monthly' })}
-                disabled={processingPayment || !stripeConfigured}
-                className="w-full py-3 rounded-xl text-sm font-bold bg-slate-900 text-white hover:bg-slate-800 transition flex items-center justify-center gap-2 disabled:opacity-60"
+                disabled={processingPayment}
+                className="w-full py-3 rounded-xl text-sm font-bold bg-[#163300] text-[#9fe870] hover:opacity-95 transition flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <span>
                   {processingPayment

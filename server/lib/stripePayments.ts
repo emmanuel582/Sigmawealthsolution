@@ -6,8 +6,21 @@ import {
   normalizeCurrency,
 } from '@/lib/sigma/money';
 
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
-const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
+function readStripeSecretKey(): string {
+  return (
+    process.env.STRIPE_SECRET_KEY ||
+    process.env.STRIPE_API_KEY ||
+    process.env.STRIPE_SECRET ||
+    ''
+  ).trim();
+}
+
+function readStripeWebhookSecret(): string {
+  return (process.env.STRIPE_WEBHOOK_SECRET || '').trim();
+}
+
+const STRIPE_SECRET_KEY = readStripeSecretKey();
+const STRIPE_WEBHOOK_SECRET = readStripeWebhookSecret();
 
 /** Platform default — frontend sticks to Naira (₦100,000 min). Override via STRIPE_CURRENCY. */
 export const STRIPE_CURRENCY = normalizeCurrency(process.env.STRIPE_CURRENCY || 'ngn');
@@ -37,15 +50,17 @@ const DEFAULT_FX_TO_NGN: Record<string, number> = {
 let stripeSingleton: Stripe | null = null;
 
 export function isStripeConfigured(): boolean {
-  return Boolean(STRIPE_SECRET_KEY && STRIPE_SECRET_KEY.startsWith('sk_'));
+  const key = readStripeSecretKey();
+  return Boolean(key && key.startsWith('sk_'));
 }
 
 export function isStripeLiveMode(): boolean {
-  return Boolean(STRIPE_SECRET_KEY.startsWith('sk_live_'));
+  return Boolean(readStripeSecretKey().startsWith('sk_live_'));
 }
 
 export function isStripeTestMode(): boolean {
-  return STRIPE_SECRET_KEY.includes('_test_') || process.env.STRIPE_MODE === 'test';
+  const key = readStripeSecretKey();
+  return key.includes('_test_') || process.env.STRIPE_MODE === 'test';
 }
 
 /** Simulation is OFF unless explicitly allowed (never auto-on when keys missing). */
@@ -54,11 +69,12 @@ export function isStripeSimulateMode(): boolean {
 }
 
 export function getStripe(): Stripe {
-  if (!isStripeConfigured()) {
-    throw new Error('Stripe is not configured. Set STRIPE_SECRET_KEY (sk_live_… for production).');
+  const key = readStripeSecretKey();
+  if (!key || !key.startsWith('sk_')) {
+    throw new Error('Stripe is not configured. Set STRIPE_SECRET_KEY (sk_live_… for production) on Vercel and Redeploy.');
   }
   if (!stripeSingleton) {
-    stripeSingleton = new Stripe(STRIPE_SECRET_KEY, {
+    stripeSingleton = new Stripe(key, {
       apiVersion: '2025-02-24.acacia' as Stripe.LatestApiVersion,
       typescript: true,
     });
@@ -67,7 +83,12 @@ export function getStripe(): Stripe {
 }
 
 export function getStripePublishableKey(): string {
-  return process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || process.env.STRIPE_PUBLISHABLE_KEY || '';
+  return (
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
+    process.env.STRIPE_PUBLISHABLE_KEY ||
+    process.env.STRIPE_PUBLIC_KEY ||
+    ''
+  ).trim();
 }
 
 export function getFrontendBaseUrl(): string {
@@ -323,10 +344,11 @@ export async function chargeSavedPaymentMethodOffSession(params: {
 
 export function constructStripeWebhookEvent(rawBody: Buffer | string, signature: string): Stripe.Event {
   const stripe = getStripe();
-  if (!STRIPE_WEBHOOK_SECRET) {
+  const whsec = readStripeWebhookSecret();
+  if (!whsec) {
     throw new Error('STRIPE_WEBHOOK_SECRET is not set');
   }
-  return stripe.webhooks.constructEvent(rawBody, signature, STRIPE_WEBHOOK_SECRET);
+  return stripe.webhooks.constructEvent(rawBody, signature, whsec);
 }
 
 export function cardBrandLast4FromPaymentMethod(pm: Stripe.PaymentMethod | string | null | undefined): {
