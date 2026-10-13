@@ -5,7 +5,7 @@ export function FAQSection() {
     {
       question: "What is SigmawealthSolution?",
       answer:
-        "SigmawealthSolution is an investment platform where you can invest from ₦100,000 and receive your full return within one month — paid weekly in four parts.",
+        "SigmawealthSolution is an investment platform where you can invest from ₦64,000 and receive your full return within one month — paid weekly in four parts.",
     },
     {
       question: "How do payouts work?",
@@ -15,12 +15,12 @@ export function FAQSection() {
     {
       question: "What is the minimum investment?",
       answer:
-        "The minimum investment is ₦100,000. Amounts below this are not accepted. There is no maximum — you can invest as much as you want.",
+        "The five funding plans are ₦64,000, ₦98,550, ₦135,000, ₦540,000, and ₦2,160,000. Each contribution must match one plan exactly.",
     },
     {
       question: "How can I fund my investment?",
       answer:
-        "You can pay with a debit card through Stripe (including optional monthly auto-debit), make a one-time payment, or transfer via Opay.",
+        "You can pay with a debit card through Bachs (including optional monthly auto-debit), make a one-time payment, or transfer via Opay.",
     },
     {
       question: "What will I see in my investor dashboard?",

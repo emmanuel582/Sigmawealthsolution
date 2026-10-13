@@ -10,7 +10,7 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'SigmawealthSolution | Smart Investing',
   description:
-    'Invest from ₦100,000 with SigmawealthSolution. Full monthly returns — 25% paid every week for 4 weeks; week 4 includes your interest.',
+    'Invest from ₦64,000 with SigmawealthSolution. Full monthly returns — 25% paid every week for 4 weeks; week 4 includes your interest.',
   generator: 'SigmawealthSolution',
   icons: {
     icon: [{ url: '/images/logo.png', type: 'image/png' }],

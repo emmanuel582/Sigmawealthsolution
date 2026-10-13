@@ -47,8 +47,9 @@ function getOrCreateGuestId() {
   if (typeof window === "undefined") return ""
   const key = "sigma_support_guest_id"
   let id = localStorage.getItem(key)
-  if (!id) {
-    id = `guest-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+  if (!id || !/^guest-[0-9a-f-]{36}$/i.test(id)) {
+    id = `guest-${crypto.randomUUID()}`
+    localStorage.removeItem("sigma_support_conversation_id")
     localStorage.setItem(key, id)
   }
   return id
@@ -92,6 +93,12 @@ const TypingDots = () => (
   </div>
 )
 
+async function supportFetch(input: RequestInfo | URL, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  headers.set('X-Support-Token', getOrCreateGuestId());
+  return fetch(input, { ...init, headers });
+}
+
 export default function ChatWidget() {
   const pathname = usePathname()
   const hideChat =
@@ -128,7 +135,7 @@ export default function ChatWidget() {
     try {
       const guestId = getOrCreateGuestId()
       const storedId = getStoredConversationId()
-      const res = await fetch("/api/support/conversations", {
+      const res = await supportFetch("/api/support/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -158,7 +165,7 @@ export default function ChatWidget() {
     let cancelled = false
     const poll = async () => {
       try {
-        const res = await fetch(`/api/support/conversations/${conversationId}?as=user`)
+        const res = await supportFetch(`/api/support/conversations/${conversationId}?as=user`)
         if (!res.ok || cancelled) return
         const data = await res.json()
         const mapped = mapServerMessages(data.messages || [])
@@ -239,7 +246,7 @@ export default function ChatWidget() {
 
   const sendTyping = (typing: boolean) => {
     if (!conversationId) return
-    fetch(`/api/support/conversations/${conversationId}/typing`, {
+    supportFetch(`/api/support/conversations/${conversationId}/typing`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ role: "user", typing, name: "Website Guest" }),
@@ -275,7 +282,7 @@ export default function ChatWidget() {
       const id = (await ensureConversation()) || conversationId
       if (!id) throw new Error("No conversation")
 
-      const res = await fetch(`/api/support/conversations/${id}/messages`, {
+      const res = await supportFetch(`/api/support/conversations/${id}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: text, sender: "user", senderName: "Website Guest" }),

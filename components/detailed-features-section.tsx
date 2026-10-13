@@ -80,9 +80,9 @@ export function DetailedFeaturesSection() {
             <div className="mb-4">
               <p className="text-base sm:text-lg font-semibold text-black mb-2">Minimum Investment</p>
             </div>
-            <AnimatedCounter end={100000} prefix="₦" duration={2} />
+            <AnimatedCounter end={64000} prefix="₦" duration={2} />
             <p className="text-gray-600 mt-4 leading-relaxed text-sm sm:text-base">
-              start from ₦100,000 — invest up to unlimited
+              start from ₦64,000 — choose one of five fixed plans
             </p>
             <div className="hidden md:block absolute -right-8 lg:-right-12 top-1/2 transform -translate-y-1/2 w-px h-32 bg-gray-300" />
           </motion.div>
@@ -145,7 +145,7 @@ export function DetailedFeaturesSection() {
                 We grow your capital with clear weekly returns
               </h3>
               <p className="text-white/85 text-sm sm:text-base max-w-xl leading-relaxed">
-                Invest from ₦100,000, get 25% of your deposit back each week for 4 weeks, and manage
+                Invest from ₦64,000, get 25% of your deposit back each week for 4 weeks, and manage
                 everything from your dashboard — card fund, auto-debit, and bank payouts.
               </p>
               <Link

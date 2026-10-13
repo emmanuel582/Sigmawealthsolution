@@ -4,6 +4,7 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { HeroSection } from "@/components/hero-section"
+import { FundingPlansSection } from "@/components/funding-plans-section"
 import { ContentExamples } from "@/components/content-examples"
 import { FeaturesSection } from "@/components/features-section"
 import { DetailedFeaturesSection } from "@/components/detailed-features-section"
@@ -31,10 +32,9 @@ export default function HomePage() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.4, 0.0, 0.2, 1] } },
   }
 
-  // Wait for auth before painting the landing — avoids a flash for signed-in users.
-  // Guests see the marketing page only after we know they are not authenticated.
-  // Existing users get the loader, then dashboard/admin.
-  if (isLoading || user) {
+  // Public funding plans render immediately, including in the production HTML.
+  // Signed-in users are redirected after their session is resolved.
+  if (user) {
     return <BrandLoader />
   }
 
@@ -43,6 +43,7 @@ export default function HomePage() {
       <Navbar />
       <main className="flex-1">
         <HeroSection />
+        <FundingPlansSection />
         <motion.div
           initial="hidden"
           whileInView="visible"

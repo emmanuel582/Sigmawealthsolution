@@ -1,9 +1,9 @@
 "use client"
-import { motion } from "framer-motion"
+import { motion, type Variants } from "framer-motion"
 import Image from "next/image"
 
 export function FeaturesSection() {
-  const cardVariants = {
+  const cardVariants: Variants = {
     hidden: { opacity: 0, y: 50 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
   }
@@ -24,7 +24,7 @@ export function FeaturesSection() {
                 Phase 1 — Open your investment
               </h3>
               <p className="text-gray-600 leading-relaxed mb-6">
-                Create your SigmawealthSolution account, choose your amount (from ₦100,000 upward), and fund with Stripe debit card or monthly auto-debit.
+                Create your SigmawealthSolution account, choose one of the five fixed funding plans, and fund with Bachs debit card or monthly auto-debit.
               </p>
               <div className="space-y-2 mb-6">
                 <p className="text-sm font-medium text-[#004324]">How much can I invest?</p>
@@ -119,7 +119,7 @@ export function FeaturesSection() {
                 Auto-debit or one-time pay
               </h3>
               <p className="text-gray-600 leading-relaxed mb-6">
-                Set a monthly auto-investment amount, or pay once whenever you are ready. Your debit card stays secure through Stripe.
+                Set a monthly auto-investment amount, or pay once whenever you are ready. Your debit card stays secure through Bachs.
               </p>
               <p className="text-sm font-medium text-[#004324] mb-6">
                 Which payment option is right for me?

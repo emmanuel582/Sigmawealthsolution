@@ -1,3 +1,4 @@
+import { supabase, isSupabaseConfigured } from '@/lib/sigma/supabaseClient';
 import { 
   Profile, 
   Investment, 
@@ -14,66 +15,35 @@ import {
 
 const API_BASE = '/api';
 
+// Attach the signed-in Supabase session to protected payment and admin requests.
+export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  if (isSupabaseConfigured) {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) headers.set('Authorization', 'Bearer ' + data.session.access_token);
+  }
+  return fetch(input, { ...init, headers });
+}
+
 export async function fetchAppConfig(): Promise<{
-  stripeConfigured: boolean;
-  stripeSimulate: boolean;
-  stripeTestMode: boolean;
-  stripePublishableKey: string;
-  flutterwaveConfigured: boolean;
-  flutterwaveSandbox: boolean;
-  opayAccountName: string;
-  opayAccountNumber: string;
-  opayBankName: string;
-  isSupabaseLive: boolean;
-  minDepositNgn?: number;
-  referralRate?: number;
-  payoutHint?: string;
+  bachsConfigured: boolean; bachsSandbox: boolean; bachsWebhookConfigured: boolean;
+  isSupabaseLive: boolean; minDepositNgn?: number; referralRate?: number; payoutHint?: string;
 }> {
   try {
-    const res = await fetch(`${API_BASE}/config`);
-    if (!res.ok) throw new Error('Failed to fetch config');
-    const data = await res.json();
-    const publishable =
-      data.stripePublishableKey ||
-      data.publishableKey ||
-      '';
-    return {
-      stripeConfigured: Boolean(data.stripeConfigured ?? data.flutterwaveConfigured ?? publishable.startsWith('pk_')),
-      stripeSimulate: Boolean(data.stripeSimulate),
-      stripeTestMode: Boolean(data.stripeTestMode ?? data.flutterwaveSandbox),
-      stripePublishableKey: publishable,
-      flutterwaveConfigured: Boolean(data.stripeConfigured ?? data.flutterwaveConfigured),
-      flutterwaveSandbox: Boolean(data.stripeSimulate ?? data.flutterwaveSandbox),
-      opayAccountName: data.opayAccountName || '',
-      opayAccountNumber: data.opayAccountNumber || '',
-      opayBankName: data.opayBankName || '',
-      isSupabaseLive: Boolean(data.isSupabaseLive),
-      minDepositNgn: data.minDepositNgn,
-      referralRate: data.referralRate,
-      payoutHint: data.payoutHint,
-    };
-  } catch (error) {
-    console.error('Error loading config:', error);
-    return {
-      stripeConfigured: false,
-      stripeSimulate: false,
-      stripeTestMode: true,
-      stripePublishableKey: '',
-      flutterwaveConfigured: false,
-      flutterwaveSandbox: true,
-      opayAccountName: '',
-      opayAccountNumber: '',
-      opayBankName: '',
-      isSupabaseLive: false,
-    };
+    const response = await fetch(API_BASE + '/config');
+    if (!response.ok) throw new Error('Configuration unavailable');
+    return await response.json();
+  } catch {
+    return { bachsConfigured: false, bachsSandbox: true, bachsWebhookConfigured: false, isSupabaseLive: false };
   }
 }
 
+
 export async function fetchNigerianBanks(): Promise<BankItem[]> {
   try {
-    const res = await fetch(`${API_BASE}/banks`);
+    const res = await apiFetch(`${API_BASE}/banks`);
     if (!res.ok) {
-      // Soft-fail when Flutterwave is offline/unconfigured — bank picker stays empty
+      // Soft-fail when Bachs is offline/unconfigured — bank picker stays empty
       return [];
     }
     const data = await res.json();
@@ -84,7 +54,7 @@ export async function fetchNigerianBanks(): Promise<BankItem[]> {
 }
 
 export async function verifyBankAccount(accountNumber: string, bankCode: string): Promise<{ account_name: string; account_number: string } | null> {
-  const res = await fetch(`${API_BASE}/verify-account`, {
+  const res = await apiFetch(`${API_BASE}/verify-account`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ account_number: accountNumber, account_bank: bankCode }),
@@ -108,9 +78,9 @@ export async function saveBankDetails(details: {
   routingNumber?: string;
   iban?: string;
   bic?: string;
-  stripeAccountId?: string;
+  bachsAccountId?: string;
 }): Promise<BankDetails> {
-  const res = await fetch(`${API_BASE}/investor/bank-details`, {
+  const res = await apiFetch(`${API_BASE}/investor/bank-details`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(details),
@@ -122,26 +92,26 @@ export async function saveBankDetails(details: {
   return await res.json();
 }
 
-/** Stripe Connect Express — open hosted onboarding to link bank for payouts worldwide */
-export async function startStripeConnectOnboarding(payload: {
+/** Bachs recipient onboarding for verified Nigerian bank payouts. */
+export async function startBachsConnectOnboarding(payload: {
   userId: string;
   email: string;
   country?: string;
   accountName?: string;
-}): Promise<{ success: boolean; onboardingUrl: string; stripeAccountId: string; message?: string }> {
-  const res = await fetch(`${API_BASE}/investor/connect/onboard`, {
+}): Promise<{ success: boolean; onboardingUrl: string; bachsAccountId: string; message?: string }> {
+  const res = await apiFetch(`${API_BASE}/investor/connect/onboard`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || 'Failed to start Stripe Connect onboarding');
+    throw new Error(err.message || 'Failed to start Bachs Connect onboarding');
   }
   return res.json();
 }
 
-export async function initiateStripePayment(payload: {
+export async function initiateBachsPayment(payload: {
   userId: string;
   email: string;
   name?: string;
@@ -168,7 +138,7 @@ export async function initiateStripePayment(payload: {
   investment?: Investment;
   nextAction?: unknown;
 }> {
-  const res = await fetch(`${API_BASE}/stripe/initiate`, {
+  const res = await apiFetch(`${API_BASE}/bachs/initiate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...payload, currency: 'ngn' }),
@@ -180,26 +150,13 @@ export async function initiateStripePayment(payload: {
   return await res.json();
 }
 
-/** @deprecated Use initiateStripePayment */
-export async function initiateFlutterwavePayment(payload: {
-  userId: string;
-  email: string;
-  name?: string;
-  phone?: string;
-  amount: number;
-  phase: string;
-  isRecurringPlan?: boolean;
-  paymentType?: 'card' | 'opay';
-}) {
-  return initiateStripePayment(payload);
-}
-
-export async function verifyStripePayment(payload: {
+export async function verifyBachsPayment(payload: {
   chargeId?: string;
   sessionId?: string;
   transactionId?: string | number;
   txRef?: string;
-  flwRef?: string;
+  checkoutId?: string;
+
   userId: string;
   email?: string;
   name?: string;
@@ -208,7 +165,7 @@ export async function verifyStripePayment(payload: {
   isRecurringPlan?: boolean;
   monthlyPlanAmount?: number;
 }): Promise<{ success: boolean; message: string; payment: Payment; investment: Investment; profile?: Profile }> {
-  const res = await fetch(`${API_BASE}/stripe/verify`, {
+  const res = await apiFetch(`${API_BASE}/bachs/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -220,38 +177,18 @@ export async function verifyStripePayment(payload: {
   return await res.json();
 }
 
-/** @deprecated Use verifyStripePayment */
-export async function verifyFlutterwavePayment(payload: {
-  chargeId?: string;
-  transactionId?: string | number;
-  txRef?: string;
-  flwRef?: string;
-  userId: string;
-  email?: string;
-  name?: string;
-  amount: number;
-  phase: string;
-  isRecurringPlan?: boolean;
-}) {
-  return verifyStripePayment(payload);
-}
-
-export async function syncStripeTransactions(): Promise<{ success: boolean; syncedCount: number; totalPayments: number; message?: string }> {
-  const res = await fetch(`${API_BASE}/stripe/sync`, {
+export async function syncBachsTransactions(all = false): Promise<{ success: boolean; syncedCount: number; totalPayments: number; message?: string }> {
+  const res = await apiFetch(`${API_BASE}/bachs/sync`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ all }),
   });
-  if (!res.ok) throw new Error('Failed to sync Stripe transactions');
+  if (!res.ok) throw new Error('Failed to sync Bachs transactions');
   return await res.json();
 }
 
-/** @deprecated Use syncStripeTransactions */
-export async function syncFlutterwaveTransactions() {
-  return syncStripeTransactions();
-}
-
 export async function cancelAutoDebitPlan(userId: string): Promise<{ success: boolean; message: string }> {
-  const res = await fetch(`${API_BASE}/investor/cancel-subscription`, {
+  const res = await apiFetch(`${API_BASE}/investor/cancel-subscription`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId }),
@@ -261,7 +198,7 @@ export async function cancelAutoDebitPlan(userId: string): Promise<{ success: bo
 }
 
 export async function saveAutoDebitPlan(userId: string, amount: number) {
-  const res = await fetch(`${API_BASE}/investor/auto-debit-plan`, {
+  const res = await apiFetch(`${API_BASE}/investor/auto-debit-plan`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId, amount }),
@@ -312,7 +249,7 @@ export async function fetchInvestorDashboardData(userId: string, email?: string)
   const url = email 
     ? `${API_BASE}/investor/dashboard/${userId}?email=${encodeURIComponent(email)}` 
     : `${API_BASE}/investor/dashboard/${userId}`;
-  const res = await fetch(url);
+  const res = await apiFetch(url);
   if (!res.ok) throw new Error('Failed to load investor dashboard');
   return await res.json();
 }
@@ -320,37 +257,17 @@ export async function fetchInvestorDashboardData(userId: string, email?: string)
 // ---------------- ADMIN API CALLS ----------------
 
 export async function adminLoginWithEmail(email: string, pass: string): Promise<{ success: boolean; user?: any; role?: string; error?: string }> {
-  try {
-    const res = await fetch(`${API_BASE}/auth/admin-login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.trim(), password: pass }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      return { success: false, error: data.message || 'Admin authentication failed' };
-    }
-    return { success: true, user: data.user, role: data.role || 'admin' };
-  } catch (err: any) {
-    return { success: false, error: err.message || 'Admin network authentication failure' };
-  }
+  if (!isSupabaseConfigured) return { success: false, error: 'Authentication is not configured.' };
+  const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password: pass });
+  if (error || !data.user) return { success: false, error: error?.message || 'Sign-in failed.' };
+  if (!await checkAdminAccess(data.user.id)) { await supabase.auth.signOut(); return { success: false, error: 'Administrator access is not approved for this account.' }; }
+  return { success: true, user: { id: data.user.id, email: data.user.email, name: data.user.user_metadata?.full_name || data.user.email }, role: 'admin' };
 }
 
 export async function adminRegisterWithEmail(email: string, pass: string, fullName?: string): Promise<{ success: boolean; user?: any; role?: string; error?: string }> {
-  try {
-    const res = await fetch(`${API_BASE}/auth/admin-register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.trim(), password: pass, fullName }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      return { success: false, error: data.message || 'Admin registration failed' };
-    }
-    return { success: true, user: data.user, role: data.role || 'admin' };
-  } catch (err: any) {
-    return { success: false, error: err.message || 'Admin network registration failure' };
-  }
+  if (!isSupabaseConfigured) return { success: false, error: 'Authentication is not configured.' };
+  const { error } = await supabase.auth.signUp({ email: email.trim().toLowerCase(), password: pass, options: { data: { full_name: fullName } } });
+  return { success: false, error: error?.message || 'Confirm your email, then sign in. Administrator access requires the owner’s allowlist and assigned role.' };
 }
 
 export async function checkAdminAccess(userId: string, email?: string): Promise<boolean> {
@@ -358,7 +275,7 @@ export async function checkAdminAccess(userId: string, email?: string): Promise<
     const url = email 
       ? `${API_BASE}/admin/check-role/${userId}?email=${encodeURIComponent(email)}`
       : `${API_BASE}/admin/check-role/${userId}`;
-    const res = await fetch(url);
+    const res = await apiFetch(url);
     if (!res.ok) return false;
     const data = await res.json();
     return data.isAdmin === true;
@@ -397,7 +314,7 @@ export async function fetchAdminOverview(): Promise<{
   }>;
   activityFeed: ActivityLogItem[];
 }> {
-  const res = await fetch(`${API_BASE}/admin/overview`);
+  const res = await apiFetch(`${API_BASE}/admin/overview`);
   if (!res.ok) throw new Error('Failed to fetch admin overview');
   return await res.json();
 }
@@ -415,13 +332,13 @@ export async function fetchAdminInvestors(query?: string, phaseFilter?: string):
   const params = new URLSearchParams();
   if (query) params.append('q', query);
   if (phaseFilter) params.append('phase', phaseFilter);
-  const res = await fetch(`${API_BASE}/admin/investors?${params.toString()}`);
+  const res = await apiFetch(`${API_BASE}/admin/investors?${params.toString()}`);
   if (!res.ok) throw new Error('Failed to fetch investors');
   return await res.json();
 }
 
 export async function deleteInvestorAccount(userId: string, adminName: string): Promise<{ success: boolean }> {
-  const res = await fetch(`${API_BASE}/admin/investors/${userId}`, {
+  const res = await apiFetch(`${API_BASE}/admin/investors/${userId}`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ adminName }),
@@ -431,7 +348,7 @@ export async function deleteInvestorAccount(userId: string, adminName: string): 
 }
 
 export async function updateInvestorRecord(userId: string, updates: Partial<Profile>, adminName: string): Promise<{ success: boolean }> {
-  const res = await fetch(`${API_BASE}/admin/investors/${userId}`, {
+  const res = await apiFetch(`${API_BASE}/admin/investors/${userId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ updates, adminName }),
@@ -441,7 +358,7 @@ export async function updateInvestorRecord(userId: string, updates: Partial<Prof
 }
 
 export async function fetchAdminPayments(): Promise<Payment[]> {
-  const res = await fetch(`${API_BASE}/admin/payments`);
+  const res = await apiFetch(`${API_BASE}/admin/payments`);
   if (!res.ok) throw new Error('Failed to fetch payments');
   return await res.json();
 }
@@ -473,13 +390,13 @@ export async function fetchAdminPayouts(): Promise<{
     failed: number;
   }>;
 }> {
-  const res = await fetch(`${API_BASE}/admin/payouts`);
+  const res = await apiFetch(`${API_BASE}/admin/payouts`);
   if (!res.ok) throw new Error('Failed to fetch payouts');
   return await res.json();
 }
 
 export async function togglePlatformPayoutMode(newMode: 'automatic' | 'manual', adminName: string): Promise<{ success: boolean; mode: 'automatic' | 'manual' }> {
-  const res = await fetch(`${API_BASE}/admin/payout-mode`, {
+  const res = await apiFetch(`${API_BASE}/admin/payout-mode`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ mode: newMode, adminName }),
@@ -497,7 +414,7 @@ export async function executeManualPayout(payload: {
   adminName: string;
   referenceNote: string;
 }): Promise<Payout> {
-  const res = await fetch(`${API_BASE}/admin/payouts/manual-pay`, {
+  const res = await apiFetch(`${API_BASE}/admin/payouts/manual-pay`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -517,11 +434,12 @@ export async function executeManualPayoutBatch(payload: {
 }): Promise<{
   success: boolean;
   paid: number;
+  pending: number;
   failed: number;
   skipped: number;
   results: Array<{ userId: string; status: string; amount?: number; message?: string }>;
 }> {
-  const res = await fetch(`${API_BASE}/admin/payouts/manual-batch`, {
+  const res = await apiFetch(`${API_BASE}/admin/payouts/manual-batch`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -534,7 +452,7 @@ export async function executeManualPayoutBatch(payload: {
 }
 
 export async function triggerScheduledPayoutRun(adminName: string): Promise<PayoutCronResult> {
-  const res = await fetch(`${API_BASE}/payouts/run-cron`, {
+  const res = await apiFetch(`${API_BASE}/payouts/run-cron`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ triggeredBy: adminName }),
@@ -544,7 +462,7 @@ export async function triggerScheduledPayoutRun(adminName: string): Promise<Payo
 }
 
 export async function fetchAdminNotifications(): Promise<NotificationItem[]> {
-  const res = await fetch(`${API_BASE}/admin/notifications`);
+  const res = await apiFetch(`${API_BASE}/admin/notifications`);
   if (!res.ok) throw new Error('Failed to fetch notifications');
   return await res.json();
 }
@@ -558,7 +476,7 @@ export async function sendBroadcastNotification(payload: {
   icon?: string;
   imageUrl?: string;
 }): Promise<NotificationItem> {
-  const res = await fetch(`${API_BASE}/admin/notifications/send`, {
+  const res = await apiFetch(`${API_BASE}/admin/notifications/send`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -601,7 +519,7 @@ export async function fetchAdminSupportConversations(): Promise<{
   conversations: SupportConversation[];
   pendingCount: number;
 }> {
-  const res = await fetch(`${API_BASE}/support/admin/conversations`);
+  const res = await apiFetch(`${API_BASE}/support/admin/conversations`);
   if (!res.ok) throw new Error('Failed to load support conversations');
   return await res.json();
 }
@@ -614,7 +532,7 @@ export async function fetchSupportConversation(
   messages: SupportMessage[];
   typing?: { role: string; name: string; at: number } | null;
 }> {
-  const res = await fetch(`${API_BASE}/support/conversations/${id}?as=${as}`);
+  const res = await apiFetch(`${API_BASE}/support/conversations/${id}?as=${as}`);
   if (!res.ok) throw new Error('Failed to load conversation');
   return await res.json();
 }
@@ -623,7 +541,7 @@ export async function sendSupportMessage(
   conversationId: string,
   payload: { content: string; sender: 'user' | 'admin'; senderName?: string }
 ) {
-  const res = await fetch(`${API_BASE}/support/conversations/${conversationId}/messages`, {
+  const res = await apiFetch(`${API_BASE}/support/conversations/${conversationId}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -639,7 +557,7 @@ export async function setSupportTyping(
   conversationId: string,
   payload: { role: 'user' | 'admin'; typing: boolean; name?: string }
 ) {
-  await fetch(`${API_BASE}/support/conversations/${conversationId}/typing`, {
+  await apiFetch(`${API_BASE}/support/conversations/${conversationId}/typing`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -647,7 +565,7 @@ export async function setSupportTyping(
 }
 
 export async function updateSupportConversationStatus(conversationId: string, status: string) {
-  const res = await fetch(`${API_BASE}/support/conversations/${conversationId}`, {
+  const res = await apiFetch(`${API_BASE}/support/conversations/${conversationId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),

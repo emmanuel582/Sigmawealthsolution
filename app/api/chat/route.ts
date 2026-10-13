@@ -70,10 +70,10 @@ export async function POST(req: NextRequest) {
 
   const knowledge = `
   SigmawealthSolution is an investment platform.
-  - Minimum investment: ₦100,000 (Naira only); maximum: unlimited
+  - Funding plans only: ₦64,000, ₦98,550, ₦135,000, ₦540,000, and ₦2,160,000 (NGN); custom amounts are not accepted
   - Full return of investment within one month
   - Payouts weekly: 25% of deposit every week for 4 weeks; week 4 also includes interest
-  - Payments: Stripe debit card or monthly auto-debit
+  - Payments: Bachs debit card or monthly auto-debit
   - Investor dashboard: total invested, next payment date, card details
   `
 
@@ -91,9 +91,9 @@ export async function POST(req: NextRequest) {
     contact: "The user wants to contact support. Point them to /contact.",
     guide: "The user needs guidance on investing with SigmawealthSolution.",
     faq: "Answer clearly about investments, payouts, and funding options.",
-    lead: "The user may want to invest. Explain ₦100,000 minimum and weekly 25% payouts, then point to /auth/signup.",
+    lead: "The user may want to invest. Explain the five fixed funding plans and weekly 25% payouts, then point to /auth/signup.",
     feature: "Explain relevant investment features clearly.",
-    pricing: "Explain minimum ₦100,000, unlimited max, and the weekly 25% × 4 payout schedule (week 4 includes interest).",
+    pricing: "Explain exact funding plans ₦64,000, ₦98,550, ₦135,000, ₦540,000, and ₦2,160,000, and the weekly 25% × 4 payout schedule (week 4 includes interest).",
     onboarding: "Welcome new investors and guide them to sign up.",
   }
 

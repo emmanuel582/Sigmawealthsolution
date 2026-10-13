@@ -25,7 +25,7 @@ export const SUPPORTED_PAYMENT_CURRENCIES = [
 
 export type PaymentCurrency = (typeof SUPPORTED_PAYMENT_CURRENCIES)[number];
 
-/** ISO-3166 alpha-2 → default settlement currency (Stripe Connect / Checkout). */
+/** ISO-3166 alpha-2 → default settlement currency (Bachs Connect / Checkout). */
 export const COUNTRY_CURRENCY: Record<string, string> = {
   NG: 'NGN',
   US: 'USD',

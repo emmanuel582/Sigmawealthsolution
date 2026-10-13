@@ -28,7 +28,10 @@ yarn-error.log*
 
 # runtime chat persistence (rebuilt from Supabase / live traffic)
 /data/
+/supabase/.temp/
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/dist/

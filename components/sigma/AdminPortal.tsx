@@ -10,7 +10,7 @@ import {
   fetchAdminInvestors,
   deleteInvestorAccount,
   fetchAdminPayments,
-  syncStripeTransactions,
+  syncBachsTransactions,
   fetchAdminPayouts,
   togglePlatformPayoutMode,
   executeManualPayout,
@@ -187,7 +187,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
   const [batchPaying, setBatchPaying] = useState(false)
   const [cronRunning, setCronRunning] = useState(false)
   const [cronResult, setCronResult] = useState<PayoutCronResult | null>(null)
-  const [syncingFlw, setSyncingFlw] = useState(false)
+  const [syncingBachs, setSyncingBachs] = useState(false)
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [notifTitle, setNotifTitle] = useState("")
@@ -215,12 +215,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
   const [visitorTyping, setVisitorTyping] = useState(false)
   const supportTypingTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const showToast = (msg: string) => {
+  const showToast = React.useCallback((msg: string) => {
     setToastMessage(msg)
     setTimeout(() => setToastMessage(null), 4000)
-  }
+  }, [])
 
-  const loadAllAdminData = async () => {
+  const loadAllAdminData = React.useCallback(async () => {
     setLoading(true)
     try {
       const [overview, invRes, pays, paysOut, notifs, support] = await Promise.all([
@@ -244,7 +244,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [showToast])
 
   const refreshSupportInbox = async () => {
     try {
@@ -305,7 +305,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
       }
     }
     verifyAccess()
-  }, [user, role])
+  }, [user, role, loadAllAdminData])
 
   const handleAdminAuth = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -403,13 +403,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
     }
     setProcessingManualPay(true)
     try {
-      await executeManualPayout({
+      const payout = await executeManualPayout({
         userId: manualPayTarget.userId,
         amount: manualPayTarget.amount,
         adminName: adminActor.name || adminActor.email || "Admin",
         referenceNote: manualPayReferenceNote,
       })
-      showToast(`Paid ${formatNaira(manualPayTarget.amount)}`)
+      showToast(payout.status === 'successful' ? `Paid ${formatNaira(manualPayTarget.amount)}` : `Payout ${payout.status} · awaiting Bachs confirmation`)
       setManualPayTarget(null)
       setManualPayReferenceNote("")
       setSelectedPayoutIds((ids) => ids.filter((id) => id !== manualPayTarget.userId))
@@ -475,16 +475,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
     }
   }
 
-  const handleSyncStripe = async () => {
-    setSyncingFlw(true)
+  const handleSyncBachs = async () => {
+    setSyncingBachs(true)
     try {
-      const res = await syncStripeTransactions()
-      showToast(res.message || "Synced with Stripe")
+      const res = await syncBachsTransactions(true)
+      showToast(res.message || "Synced with Bachs")
       await loadAllAdminData()
     } catch (err: any) {
       showToast(err.message || "Sync failed")
     } finally {
-      setSyncingFlw(false)
+      setSyncingBachs(false)
     }
   }
 
@@ -837,11 +837,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={handleSyncStripe}
-              disabled={syncingFlw || loading}
+              onClick={handleSyncBachs}
+              disabled={syncingBachs || loading}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white border border-[#163300]/10 text-xs font-semibold hover:border-[#163300]/25 disabled:opacity-50"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${syncingFlw ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${syncingBachs ? "animate-spin" : ""}`} />
               <span className="hidden sm:inline">Sync</span>
             </button>
             <button
@@ -1154,7 +1154,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
                               <p className="font-semibold">{formatNaira(p.amount)}</p>
                               <p className="text-xs text-[#163300]/45 truncate">
                                 {p.investor_name || p.investor_email || "Investor"} ·{" "}
-                                {p.method?.replace(/_/g, " ") || "card"} · {p.flutterwave_tx_ref || p.id}
+                                {p.method?.replace(/_/g, " ") || "card"} · {p.provider_reference || p.id}
                               </p>
                               <p className="text-[11px] text-[#163300]/35">{formatDate(p.created_at, true)}</p>
                             </div>
@@ -1740,7 +1740,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
                       <h3 className="font-bold">Platform</h3>
                     </div>
                     <p className="text-sm text-[#163300]/60">
-                      Live admin data loads from the Sigma API. Payments sync via Stripe. Payouts support
+                      Live admin data loads from the Sigma API. Payments sync via Bachs. Payouts support
                       automatic runs or manual mark-paid. Mass alerts appear instantly on investor dashboards.
                     </p>
                     <div className="grid sm:grid-cols-2 gap-3 pt-2">

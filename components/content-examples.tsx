@@ -16,8 +16,8 @@ import {
 const features = [
   {
     icon: Wallet,
-    title: "Start from ₦100,000",
-    description: "Invest from ₦100,000 with no upper ceiling. Build and scale your investment portfolio on your terms."
+    title: "Five fixed funding plans",
+    description: "Choose exactly ₦64,000, ₦98,550, ₦135,000, ₦540,000, or ₦2,160,000 for each top-up."
   },
   {
     icon: Calendar,
@@ -27,7 +27,7 @@ const features = [
   {
     icon: CreditCard,
     title: "Seamless Funding & Auto-Debit",
-    description: "Fund effortlessly via Stripe debit cards or monthly automated recurring debits."
+    description: "Fund effortlessly via Bachs debit cards or monthly automated recurring debits."
   },
   {
     icon: BarChart3,
@@ -42,7 +42,7 @@ const features = [
   {
     icon: Landmark,
     title: "Direct Bank Account Payouts",
-    description: "Returns are disbursed to verified bank accounts worldwide (NG NUBAN, US ACH, or IBAN) via Stripe Connect / Global Payouts."
+    description: "Returns are disbursed to verified Nigerian bank accounts via Bachs Connect."
   },
   {
     icon: Users,

@@ -3,27 +3,26 @@ services:
     name: sigmawealth-api
     runtime: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm ci --include=dev && npm run build:api && npm prune --omit=dev
     startCommand: npm run start:api
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: STRIPE_CURRENCY
-        value: ngn
       - key: FRONTEND_URL
-        value: https://sigmawealthsolution.vercel.app
+        value: https://sigmawealthsolution.com
       - key: PUBLIC_API_URL
-        fromService:
-          type: web
-          name: sigmawealth-api
-          property: host
-      - key: STRIPE_SECRET_KEY
+        value: https://sigmawealthsolutionbackend.onrender.com
+      - key: BACHS_API_KEY
         sync: false
-      - key: STRIPE_WEBHOOK_SECRET
+      - key: BACHS_WEBHOOK_SECRET
         sync: false
-      - key: STRIPE_PUBLISHABLE_KEY
+      - key: BACHS_CRON_SECRET
         sync: false
+      - key: BACHS_BUSINESS_APPROVED
+        value: '0'
+      - key: BACHS_AUTOMATION_ENABLED
+        value: '0'
       - key: NEXT_PUBLIC_SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY

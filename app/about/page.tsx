@@ -35,7 +35,7 @@ export default function AboutPage() {
               About SigmawealthSolution
             </h1>
             <p className="mt-4 text-white/65 text-base sm:text-lg max-w-xl leading-relaxed">
-              We help people grow wealth with clear monthly returns — from ₦100,000 upward.
+              We help people grow wealth with clear monthly returns — from ₦64,000 upward.
             </p>
           </div>
         </section>
@@ -93,10 +93,10 @@ export default function AboutPage() {
               <h2 className="text-xl sm:text-2xl font-bold text-[#163300] mb-4">How investing works</h2>
               <ul className="space-y-3">
                 {[
-                  "Minimum investment: ₦100,000 (unlimited maximum)",
+                  "Fixed funding plans: ₦64,000, ₦98,550, ₦135,000, ₦540,000, and ₦2,160,000",
                   "Full return of investment within one month",
                   "25% paid every week for 4 weeks · week 4 includes interest",
-                  "Fund via Stripe debit card, monthly auto-debit, or Opay transfer",
+                  "Fund via Bachs debit card, monthly auto-debit, or Opay transfer",
                 ].map((item) => (
                   <li key={item} className="flex gap-3 text-sm sm:text-base text-[#163300]/75 leading-relaxed">
                     <span className="mt-2 w-1.5 h-1.5 rounded-full bg-[#004324] shrink-0" />

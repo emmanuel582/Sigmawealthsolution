@@ -1,3 +1,5 @@
+import { FUNDING_PLANS, FUNDING_PLAN_ERROR, isFundingPlanAmount } from '@/lib/sigma/fundingPlans';
+import { FundingPlanPicker } from '@/components/sigma/FundingPlanPicker';
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardSkeleton } from '@/components/sigma/ui/Skeleton';
@@ -12,10 +14,10 @@ import {
   fetchNigerianBanks, 
   verifyBankAccount, 
   saveBankDetails,
-  startStripeConnectOnboarding,
-  initiateStripePayment,
-  verifyStripePayment,
-  syncStripeTransactions,
+  startBachsConnectOnboarding,
+  initiateBachsPayment,
+  verifyBachsPayment,
+  syncBachsTransactions,
   saveAutoDebitPlan,
   type ReferralItem,
   type AutoDebitPlan,
@@ -80,14 +82,14 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
   const [referralCount, setReferralCount] = useState(0);
   const [referrals, setReferrals] = useState<ReferralItem[]>([]);
   const [autoDebitPlan, setAutoDebitPlan] = useState<AutoDebitPlan | null>(null);
-  const [monthlyDebitAmount, setMonthlyDebitAmount] = useState('');
+  const [monthlyDebitAmount, setMonthlyDebitAmount] = useState(String(FUNDING_PLANS[0].amount));
   const [savingAutoDebit, setSavingAutoDebit] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
 
   // Config & Banks
-  const [stripeConfigured, setStripeConfigured] = useState(false);
-  const [stripeSimulate, setStripeSimulate] = useState(false);
+  const [bachsConfigured, setBachsConfigured] = useState(false);
+  const [bachsSandbox, setBachsSimulate] = useState(false);
   const [connectingPayout, setConnectingPayout] = useState(false);
   const [payoutCountry, setPayoutCountry] = useState('NG');
   const [routingNumber, setRoutingNumber] = useState('');
@@ -101,7 +103,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
   const [paymentTab, setPaymentTab] = useState<'one-time' | 'monthly'>('one-time');
   const [showNotificationPopover, setShowNotificationPopover] = useState(false);
   const [selectedPhase] = useState('Active Plan');
-  const [customAmount, setCustomAmount] = useState<string>('');
+  const [selectedFundingAmount, setSelectedFundingAmount] = useState<string>(String(FUNDING_PLANS[0].amount));
 
   // Bank Setup Modal
   const [showBankModal, setShowBankModal] = useState(false);
@@ -116,7 +118,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
   // Feedback notifications
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [syncingFlw, setSyncingFlw] = useState(false);
+  const [syncingBachs, setSyncingBachs] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
 
   const clearActionFeedback = () => {
@@ -129,7 +131,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
     setActiveTab(tab);
   };
 
-  const loadData = async () => {
+  const loadData = React.useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
@@ -139,11 +141,8 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
         fetchInvestorDashboardData(user.id, user.email),
       ]);
 
-      setStripeConfigured(
-        Boolean(configData.stripeConfigured) ||
-          Boolean(configData.stripePublishableKey?.startsWith('pk_'))
-      );
-      setStripeSimulate(Boolean(configData.stripeSimulate ?? configData.flutterwaveSandbox));
+      setBachsConfigured(Boolean(configData.bachsConfigured));
+      setBachsSimulate(Boolean(configData.bachsSandbox));
       setBanksList(banks);
 
       setProfile(dashData.profile);
@@ -166,27 +165,27 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   const handleSyncTransactions = async () => {
-    setSyncingFlw(true);
+    setSyncingBachs(true);
     try {
-      const res = await syncStripeTransactions();
+      const res = await syncBachsTransactions();
       setActionSuccess(res.message || 'Synced transactions successfully');
       setTimeout(() => setActionSuccess(null), 4000);
       await loadData();
       await refreshProfile();
     } catch (err: any) {
-      setActionError(err.message || 'Failed to sync Stripe');
+      setActionError(err.message || 'Failed to sync Bachs');
       setTimeout(() => setActionError(null), 4000);
     } finally {
-      setSyncingFlw(false);
+      setSyncingBachs(false);
     }
   };
 
   useEffect(() => {
     loadData();
-  }, [user?.id]);
+  }, [loadData]);
 
   // Capture referral cookie (30 days) from ?ref= or existing storage
   useEffect(() => {
@@ -229,7 +228,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
   };
 
   const hasSavedCard = Boolean(
-    cardDetails?.stripe_payment_method_id || cardDetails?.flutterwave_card_token
+    cardDetails?.bachs_payment_method_id
   );
 
   const handleConnectPayout = async () => {
@@ -238,7 +237,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
     setActionError(null);
     setBankError(null);
     try {
-      const result = await startStripeConnectOnboarding({
+      const result = await startBachsConnectOnboarding({
         userId: user.id,
         email: user.email,
         country: payoutCountry || bankDetails?.country || 'NG',
@@ -248,9 +247,9 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
         window.location.href = result.onboardingUrl;
         return;
       }
-      setActionError('No onboarding URL returned from Stripe');
+      setActionError('No onboarding URL returned from Bachs');
     } catch (err: any) {
-      setActionError(err.message || 'Could not start Stripe Connect');
+      setActionError(err.message || 'Could not start Bachs Connect');
       setTimeout(() => setActionError(null), 8000);
     } finally {
       setConnectingPayout(false);
@@ -260,8 +259,8 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
   const handleSaveAutoDebit = async () => {
     if (!user) return;
     const amount = Number(monthlyDebitAmount);
-    if (!amount || amount < 100000) {
-      setActionError('Minimum monthly auto-debit is ₦100,000');
+    if (!isFundingPlanAmount(amount)) {
+      setActionError(FUNDING_PLAN_ERROR);
       setTimeout(() => setActionError(null), 3000);
       return;
     }
@@ -280,7 +279,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
     }
   };
 
-  const finalizePayment = async (params: {
+  const finalizePayment = React.useCallback(async (params: {
     chargeId: string;
     sessionId?: string;
     reference: string;
@@ -290,7 +289,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
     phase?: string;
   }) => {
     if (!user) return;
-    const verified = await verifyStripePayment({
+    const verified = await verifyBachsPayment({
       chargeId: params.chargeId,
       sessionId: params.sessionId,
       txRef: params.reference,
@@ -304,16 +303,15 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
     });
 
     if (verified.success) {
-      setActionSuccess(
-        params.isRecurring
-          ? `Min charge of ${formatNaira(params.amount)} confirmed. Monthly auto-debit of ${formatNaira(params.monthlyPlanAmount || params.amount)} is active.`
-          : `Payment of ${formatNaira(params.amount)} confirmed. Investment credited.`
-      );
+      setActionSuccess(verified.message || 'Bachs payment confirmed.');
       setTimeout(() => setActionSuccess(null), 5000);
       await refreshProfile();
       await loadData();
+      return true;
     }
-  };
+    setActionError(verified.message || 'Bachs is still confirming this payment. Use Sync to check again.');
+    return false;
+  }, [user, selectedPhase, refreshProfile, loadData]);
 
   useEffect(() => {
     if (!user) return;
@@ -323,20 +321,22 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
     if (!hashQuery) return;
 
     const params = new URLSearchParams(hashQuery);
-    if (params.get('stripe_return') !== '1' && params.get('flw_return') !== '1') return;
+    if (params.get('bachs_return') !== '1') return;
 
-    const stored = sessionStorage.getItem('apex_pending_payment');
-    const pending = stored ? JSON.parse(stored) : null;
+    let pending: any = null;
+    try { const stored = sessionStorage.getItem('apex_pending_payment'); pending = stored ? JSON.parse(stored) : null; } catch { /* Verify using the provider return reference. */ }
     const reference = params.get('reference') || pending?.reference;
-    const sessionId = params.get('session_id') || params.get('sessionId') || pending?.sessionId;
+    const sessionId = params.get('checkout_id') || params.get('session_id') || params.get('sessionId') || pending?.sessionId;
     const chargeId = params.get('charge_id') || params.get('chargeId') || pending?.chargeId;
 
     if (!reference && !chargeId && !sessionId) return;
+    // Consume the return before callbacks change after refreshing the profile.
+    window.history.replaceState(null, '', '/dashboard');
 
     (async () => {
       setProcessingPayment(true);
       try {
-        await finalizePayment({
+        const confirmed = await finalizePayment({
           chargeId: chargeId || sessionId || '',
           sessionId: sessionId || undefined,
           reference: reference || '',
@@ -345,7 +345,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
           monthlyPlanAmount: pending?.monthlyPlanAmount ? Number(pending.monthlyPlanAmount) : undefined,
           phase: pending?.phase,
         });
-        sessionStorage.removeItem('apex_pending_payment');
+        if (confirmed) sessionStorage.removeItem('apex_pending_payment');
       } catch (err: any) {
         setActionError(err.message || 'Payment verification failed');
         setTimeout(() => setActionError(null), 5000);
@@ -354,19 +354,19 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
         window.history.replaceState(null, '', '/dashboard');
       }
     })();
-  }, [user?.id]);
+  }, [user, finalizePayment]);
 
-  const handleStripePayment = async (opts?: { recurring?: boolean }) => {
+  const handleBachsPayment = async (opts?: { recurring?: boolean }) => {
     if (!user) return;
     const isRecurring = Boolean(opts?.recurring) || paymentTab === 'monthly';
-    const amount = Number(isRecurring ? (customAmount || monthlyDebitAmount) : customAmount);
-    if (!amount || amount < 100000) {
-      setActionError('Minimum deposit is ₦100,000. Amounts below this are not accepted.');
+    const amount = Number(isRecurring ? (selectedFundingAmount || monthlyDebitAmount) : selectedFundingAmount);
+    if (!isFundingPlanAmount(amount)) {
+      setActionError(FUNDING_PLAN_ERROR);
       setTimeout(() => setActionError(null), 4000);
       return;
     }
-    if (!stripeConfigured) {
-      setActionError('Card payments are not configured. Contact support.');
+    if (!bachsConfigured) {
+      setActionError('Funding is awaiting payment-provider activation. Contact support for an update.');
       setTimeout(() => setActionError(null), 4000);
       return;
     }
@@ -394,7 +394,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
     setProcessingPayment(true);
 
     try {
-      const initiated = await initiateStripePayment({
+      const initiated = await initiateBachsPayment({
         userId: user.id,
         email: user.email,
         name: user.name,
@@ -413,7 +413,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
           chargeId: initiated.chargeId,
           sessionId: initiated.sessionId,
           reference: initiated.reference,
-          amount: initiated.amountCharged || (isRecurring ? 100000 : amount),
+          amount: initiated.amountCharged ?? amount,
           isRecurring,
           monthlyPlanAmount: isRecurring ? amount : undefined,
           phase: selectedPhase,
@@ -425,7 +425,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
         return;
       }
 
-      if (initiated.completed || initiated.status === 'succeeded' || initiated.simulated) {
+      if (initiated.completed) {
         setShowPaymentModal(false);
         if (initiated.payment) {
           setActionSuccess(
@@ -441,7 +441,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
             chargeId: initiated.chargeId,
             sessionId: initiated.sessionId,
             reference: initiated.reference,
-            amount: initiated.amountCharged || (isRecurring ? 100000 : amount),
+            amount: initiated.amountCharged ?? amount,
             isRecurring,
             monthlyPlanAmount: isRecurring ? amount : undefined,
           });
@@ -716,6 +716,13 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
               )}
             </SurfaceCard>
 
+            <SurfaceCard className="p-4 space-y-4">
+              <FundingPlanPicker value={selectedFundingAmount} onChange={amount => setSelectedFundingAmount(String(amount))} label="Top-up plans" />
+              <PressableButton fullWidth variant="lime" onClick={() => { setPaymentTab('one-time'); setShowPaymentModal(true); }}>
+                Continue with {formatNaira(selectedFundingAmount)}
+              </PressableButton>
+            </SurfaceCard>
+
             <SurfaceCard className="overflow-hidden">
               <div className="p-4 flex items-center justify-between border-b border-[#163300]/5">
                 <h3 className="text-sm font-bold">Recent Activity</h3>
@@ -816,14 +823,14 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                     <Building2 className="w-4 h-4 text-[#163300]" />
                     <h3 className="text-sm font-bold text-[#163300]">Payout bank</h3>
                   </div>
-                  {bankDetails?.stripe_account_id ? (
+                  {bankDetails?.bachs_account_id ? (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#9fe870]/40 text-[#163300]">
                       {bankDetails.connect_onboarding_complete ? 'READY' : 'PENDING'}
                     </span>
                   ) : null}
                 </div>
 
-                {bankDetails?.stripe_account_id ? (
+                {bankDetails?.bachs_account_id ? (
                   <div className="space-y-3">
                     <div className="p-4 rounded-xl bg-[#edefeb] space-y-2 text-xs">
                       <div className="flex justify-between">
@@ -837,7 +844,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                         </span>
                       </div>
                       <p className="text-[10px] text-emerald-700 pt-1 border-t border-[#163300]/8">
-                        Stripe Connect linked — returns go to your local bank in {bankDetails.country || 'your country'}.
+                        Bachs Connect linked — returns go to your local bank in {bankDetails.country || 'your country'}.
                       </p>
                     </div>
                     <button
@@ -845,7 +852,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                       disabled={connectingPayout}
                       className="w-full px-4 py-2.5 rounded-lg text-xs font-bold bg-[#163300] text-[#9fe870] disabled:opacity-50"
                     >
-                      {connectingPayout ? 'Opening Stripe…' : 'Update payout bank with Stripe'}
+                      {connectingPayout ? 'Opening Bachs…' : 'Update payout bank with Bachs'}
                     </button>
                   </div>
                 ) : (
@@ -853,14 +860,14 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                     <Building2 className="w-8 h-8 text-[#163300]/25 mx-auto" />
                     <p className="text-xs font-semibold">Get paid to your local bank (worldwide)</p>
                     <p className="text-[11px] text-[#163300]/50">
-                      Stripe Connect opens a secure flow where you pick your country and link NUBAN, ACH, IBAN, or other local bank details. No manual form.
+                      Bachs Connect opens a secure flow where you pick your country and link your Nigerian bank details. No manual form.
                     </p>
                     <button
                       onClick={() => setShowBankModal(true)}
                       disabled={connectingPayout}
                       className="px-4 py-2 rounded-lg text-xs font-bold bg-[#163300] text-[#9fe870] disabled:opacity-50"
                     >
-                      {connectingPayout ? 'Opening…' : 'Connect payout bank with Stripe'}
+                      {connectingPayout ? 'Opening…' : 'Connect payout bank with Bachs'}
                     </button>
                   </div>
                 )}
@@ -881,7 +888,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
 
                 {cardDetails ? (
                   <div className="p-4 rounded-2xl bg-[#163300] text-white space-y-2">
-                    <p className="text-[10px] text-[#9fe870]">Saved on Stripe</p>
+                    <p className="text-[10px] text-[#9fe870]">Saved on Bachs</p>
                     <p className="font-mono tracking-wider text-sm">
                       {maskCardNumber(cardDetails.card_last4, cardDetails.card_brand)}
                     </p>
@@ -891,7 +898,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                   <div className="p-4 border border-dashed border-[#163300]/15 rounded-xl text-center space-y-2">
                     <p className="text-xs font-semibold">No card saved yet</p>
                     <p className="text-[11px] text-[#163300]/50">
-                      Already invested? Set your monthly amount in naira — we only verify/save the card (no second ₦100,000). Monthly charges use the amount you set (minimum ₦100,000).
+                      Already invested? Choose one of the five monthly plans. Saving your card does not make another deposit.
                     </p>
                     <button
                       onClick={() => {
@@ -909,13 +916,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                   <label className="text-[10px] font-bold uppercase text-[#163300]/45">
                     Monthly auto-debit amount (₦)
                   </label>
-                  <input
-                    type="number"
-                    value={monthlyDebitAmount}
-                    onChange={(e) => setMonthlyDebitAmount(e.target.value)}
-                    placeholder="e.g. 100000"
-                    className="w-full h-11 px-3 rounded-xl border border-[#163300]/10 text-sm"
-                  />
+                  <FundingPlanPicker value={monthlyDebitAmount} onChange={amount => setMonthlyDebitAmount(String(amount))} disabled={savingAutoDebit} label="Monthly funding plan" />
                   <p className="text-[11px] text-[#163300]/45">
                     We’ll charge this amount monthly and send you a notification one day before.
                   </p>
@@ -1085,7 +1086,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
             <div className="flex items-center justify-between border-b border-[#163300]/8 pb-3">
               <div>
                 <h3 className="text-lg font-bold text-[#163300]">Make a Contribution</h3>
-                <p className="text-xs text-[#163300]/50">Pay securely with Stripe</p>
+                <p className="text-xs text-[#163300]/50">Pay securely with Bachs</p>
               </div>
               <button
                 onClick={() => setShowPaymentModal(false)}
@@ -1126,19 +1127,19 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
             <div className="space-y-4">
               {paymentTab === 'one-time' ? (
                 <div className="p-3.5 rounded-xl bg-sky-50 border border-sky-100 text-xs text-slate-700 leading-relaxed">
-                  <strong>One-time contribution:</strong> Pay securely via Stripe Checkout for your deposit.
+                  <strong>One-time contribution:</strong> Pay securely via Bachs Checkout for your deposit.
                 </div>
               ) : (
                 <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-100 text-xs text-slate-700 leading-relaxed space-y-1.5">
                   <p>
-                    <strong>Monthly auto-debit:</strong> Set the amount to remove from your card every month.
+                    <strong>Monthly auto-debit:</strong> Choose the plan to charge to your card every month.
                   </p>
                   <p className="text-[#163300]/70">
                     {hasSavedCard
                       ? `Saved card •••• ${cardDetails?.card_last4 || '****'} will be charged the monthly amount you set.`
                       : dashboardStats.totalInvested > 0
-                        ? 'You already funded — we only save your card (no second full deposit). Monthly auto-debit uses the naira amount you set (minimum ₦100,000).'
-                        : 'Enter the monthly amount in naira (minimum ₦100,000). First-time setup charges ₦100,000 once to save the card; later months charge only your set amount.'}
+                        ? 'You already funded — we only save your card. Future monthly debits use your selected plan amount.'
+                        : 'Your first deposit and future monthly debits use the exact plan you select.'}
                   </p>
                   {autoDebitPlan?.active && (
                     <p className="font-semibold text-emerald-800">
@@ -1148,35 +1149,23 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                 </div>
               )}
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  {paymentTab === 'monthly' ? 'Monthly Amount (₦)' : 'Deposit Amount (₦)'}
-                </label>
-                <input
-                  type="number"
-                  value={customAmount}
-                  onChange={(e) => {
-                    setCustomAmount(e.target.value);
-                    if (paymentTab === 'monthly') setMonthlyDebitAmount(e.target.value);
-                  }}
-                  disabled={processingPayment}
-                  className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-sm font-mono text-slate-900 focus:ring-2 focus:ring-slate-900 disabled:bg-slate-50 disabled:text-slate-400"
-                  placeholder="Enter amount"
-                />
-              </div>
+              <FundingPlanPicker
+                value={selectedFundingAmount}
+                onChange={amount => { setSelectedFundingAmount(String(amount)); setMonthlyDebitAmount(String(amount)); }}
+                disabled={processingPayment}
+                label={paymentTab === 'monthly' ? 'Choose your monthly plan' : 'Choose your top-up plan'}
+              />
 
-              {!stripeConfigured && (
+              {!bachsConfigured && (
                 <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                  Stripe keys are not loaded on the server yet. In Vercel → Environment Variables confirm{' '}
-                  <strong>STRIPE_SECRET_KEY</strong> and <strong>STRIPE_PUBLISHABLE_KEY</strong>, then Redeploy
-                  Production.
+                  Payments are temporarily unavailable. Please contact support.
                 </p>
               )}
 
               <button
                 type="button"
-                onClick={() => handleStripePayment({ recurring: paymentTab === 'monthly' })}
-                disabled={processingPayment}
+                onClick={() => handleBachsPayment({ recurring: paymentTab === 'monthly' })}
+                disabled={processingPayment || !bachsConfigured}
                 className="w-full py-3 rounded-xl text-sm font-bold bg-[#163300] text-[#9fe870] hover:opacity-95 transition flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <span>
@@ -1184,9 +1173,9 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                     ? 'Processing…'
                     : paymentTab === 'monthly'
                       ? hasSavedCard
-                        ? `Activate ${customAmount ? formatNaira(customAmount) : 'monthly'} auto-debit`
-                        : `Pay & set up ${customAmount ? formatNaira(customAmount) : 'monthly'} auto-debit`
-                      : `Pay ${customAmount ? formatNaira(customAmount) : 'now'} via Stripe`}
+                        ? `Activate ${selectedFundingAmount ? formatNaira(selectedFundingAmount) : 'monthly'} auto-debit`
+                        : `Pay & set up ${selectedFundingAmount ? formatNaira(selectedFundingAmount) : 'monthly'} auto-debit`
+                      : `Pay ${selectedFundingAmount ? formatNaira(selectedFundingAmount) : 'now'} via Bachs`}
                 </span>
                 <ArrowUpRight className="w-4 h-4" />
               </button>
@@ -1226,14 +1215,14 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
         </div>
       )}
 
-      {/* ---------------- STRIPE CONNECT COUNTRY PICKER ---------------- */}
+      {/* ---------------- BACHS CONNECT COUNTRY PICKER ---------------- */}
       {showBankModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 sm:p-8 space-y-5 shadow-2xl border border-slate-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Connect payout bank</h3>
-                <p className="text-xs text-slate-500">Stripe collects your local bank details securely</p>
+                <p className="text-xs text-slate-500">Bachs collects your local bank details securely</p>
               </div>
               <button
                 onClick={() => setShowBankModal(false)}
@@ -1259,14 +1248,14 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                   onChange={(e) => setPayoutCountry(e.target.value)}
                   className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-sm text-slate-900 focus:ring-2 focus:ring-slate-900"
                 >
-                  {payoutCountryOptions().map((c) => (
+                  {payoutCountryOptions().filter(c => c.code === 'NG').map((c) => (
                     <option key={c.code} value={c.code}>
                       {c.label}
                     </option>
                   ))}
                 </select>
                 <p className="text-[11px] text-slate-500 mt-2">
-                  Next you finish Stripe Connect and link NUBAN / ACH / IBAN / local bank details for that country. Weekly returns then go to your account automatically.
+                  Next you finish Bachs Connect and link your Nigerian bank details. Weekly returns then go to your account automatically.
                 </p>
               </div>
 
@@ -1278,7 +1267,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
                 disabled={connectingPayout}
                 className="w-full py-3 rounded-xl text-sm font-bold bg-[#163300] text-[#9fe870] hover:opacity-95 transition disabled:opacity-40"
               >
-                {connectingPayout ? 'Opening Stripe…' : 'Continue with Stripe Connect'}
+                {connectingPayout ? 'Opening Bachs…' : 'Continue with Bachs Connect'}
               </button>
             </div>
           </div>

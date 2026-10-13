@@ -12,18 +12,25 @@ async function getTransporter(): Promise<Transporter | null> {
     port: Number(SMTP_PORT || 587),
     secure: Number(SMTP_PORT) === 465,
     auth: { user: SMTP_USER, pass: SMTP_PASS },
+    disableFileAccess: true,
+    disableUrlAccess: true,
+    connectionTimeout: 10000,
+    socketTimeout: 15000,
   })
 }
 
 export async function POST(req: NextRequest) {
   try {
     const { name, email, description, type, severity } = await req.json()
-    if (!name || !email || !description) {
+    if (typeof name !== 'string' || typeof email !== 'string' || typeof description !== 'string'
+      || !name.trim() || name.length > 120 || /[\r\n]/.test(name)
+      || email.length > 254 || !/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(email)
+      || !description.trim() || description.length > 4000) {
       return NextResponse.json({ ok: false, error: "Missing fields" }, { status: 400 })
     }
 
     const payload = {
-      type: (type || "issue") as string,
+      type: type === 'feedback' ? 'feedback' : 'issue',
       severity: severity === "urgent" ? "urgent" : "normal",
       name: String(name),
       email: String(email),
@@ -32,7 +39,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Log server-side for observability
-    console.log("feedback_entry", payload)
+    console.log("feedback_entry", { type: payload.type, severity: payload.severity, ts: payload.ts })
 
     // Prepare email content
     const FEEDBACK_TO = process.env.FEEDBACK_TO || process.env.CONTACT_EMAIL || ""
@@ -43,7 +50,8 @@ export async function POST(req: NextRequest) {
     const transporter = await getTransporter()
     if (transporter && FEEDBACK_TO) {
       await transporter.sendMail({
-        from: process.env.SMTP_FROM || payload.email,
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        replyTo: payload.email,
         to: FEEDBACK_TO,
         subject,
         text,

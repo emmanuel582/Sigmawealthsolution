@@ -59,7 +59,7 @@ export function HeroSection() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
             >
-              Invest from ₦100,000. Get your full return every month — 25% paid every week for 4 weeks, with interest included in week 4.
+              Choose a fixed funding plan from ₦64,000. Get your full return every month — 25% paid every week for 4 weeks, with interest included in week 4.
             </motion.p>
 
             <motion.div

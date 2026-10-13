@@ -1,10 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   images: {
     unoptimized: true,
@@ -41,12 +41,12 @@ const nextConfig = {
         key: 'Content-Security-Policy',
         value: [
           "default-src 'self'",
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://*.supabase.co https://js.stripe.com https://checkout.stripe.com",
+          `script-src 'self' 'unsafe-inline' ${isProd ? '' : "'unsafe-eval'"} https://accounts.google.com https://*.supabase.co`,
           "style-src 'self' 'unsafe-inline'",
           "img-src 'self' data: blob: https:",
           "font-src 'self' data:",
-          "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com https://oauth2.googleapis.com http://127.0.0.1:4000 http://localhost:4000 https://*.onrender.com https://*.vercel.app https://sigmawealthsolution.com https://*.sigmawealthsolution.com https://api.stripe.com https://checkout.stripe.com",
-          "frame-src 'self' https://accounts.google.com https://*.supabase.co https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com",
+          "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com https://oauth2.googleapis.com http://127.0.0.1:4000 http://localhost:4000 https://*.onrender.com https://*.vercel.app https://sigmawealthsolution.com https://*.sigmawealthsolution.com",
+          "frame-src 'self' https://accounts.google.com https://*.supabase.co",
           "frame-ancestors 'none'",
           "base-uri 'self'",
           "form-action 'self'",
@@ -66,7 +66,7 @@ const nextConfig = {
   async rewrites() {
     const api = (process.env.SIGMA_API_URL || process.env.NEXT_PUBLIC_SIGMA_API_URL || 'http://127.0.0.1:4000').replace(/\/$/, '')
     // Proxy investor/admin/auth APIs to Express (Render).
-    // Stripe initiate/verify/webhook + /api/config + Connect onboard are Next.js routes on Vercel.
+    // All Bachs payment, webhook and Connect routes use one Express ledger on Render.
     return [
       { source: '/api/health', destination: `${api}/health` },
       { source: '/api/banks', destination: `${api}/api/banks` },
@@ -81,7 +81,9 @@ const nextConfig = {
       { source: '/api/investor/process-auto-debits', destination: `${api}/api/investor/process-auto-debits` },
       { source: '/api/investor/auto-debit-reminders', destination: `${api}/api/investor/auto-debit-reminders` },
       { source: '/api/investor/cancel-subscription', destination: `${api}/api/investor/cancel-subscription` },
-      { source: '/api/flutterwave/:path*', destination: `${api}/api/flutterwave/:path*` },
+      { source: '/api/bachs/:path*', destination: `${api}/api/bachs/:path*` },
+      { source: '/api/config', destination: `${api}/api/config` },
+      { source: '/api/investor/connect/onboard', destination: `${api}/api/investor/connect/onboard` },
       { source: '/api/opay/:path*', destination: `${api}/api/opay/:path*` },
       { source: '/api/admin/:path*', destination: `${api}/api/admin/:path*` },
       { source: '/api/payouts/:path*', destination: `${api}/api/payouts/:path*` },

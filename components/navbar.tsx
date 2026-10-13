@@ -31,7 +31,7 @@ export function Navbar() {
     {
       icon: Wallet,
       title: "Flexible Investing",
-      description: "Start from ₦100,000 — invest as much as you want",
+      description: "Start from ₦64,000 — choose one of five fixed funding plans",
       href: "/#how-it-works",
     },
     {

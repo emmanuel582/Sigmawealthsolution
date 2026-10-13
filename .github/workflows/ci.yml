@@ -1,20 +1,30 @@
 name: CI
 
-on: [pull_request]
+on: [push, pull_request]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+      - name: Check types
+        run: npm run typecheck
+      - name: Check private credentials
+        run: npm run check:secrets
+      - name: Payment and authorization tests
+        run: npm run test:bachs
+      - name: Build API
+        run: npm run build:api
       - name: Run linter
         run: npm run lint
       - name: Run build
         run: npm run build
+      - name: Verify funding section
+        run: node scripts/check-production-ui.mjs

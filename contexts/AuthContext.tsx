@@ -3,11 +3,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from '@/lib/sigma/supabaseClient';
 import { UserRole, Profile } from '@/lib/sigma/types';
-import { checkAdminAccess } from '@/lib/sigma/api';
+import { checkAdminAccess, apiFetch } from '@/lib/sigma/api';
 
 // Server-side fallback auth (/api/auth/*) is for local development only.
 // In production, Supabase is the single source of truth so accounts persist.
-const ALLOW_SERVER_FALLBACK = process.env.NODE_ENV !== 'production';
+const ALLOW_SERVER_FALLBACK = false;
 const NOT_CONFIGURED_ERROR = 'Authentication is not configured. Please contact support.';
 
 interface UserSession {
@@ -115,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const profileParams = new URLSearchParams();
       if (userData.email) profileParams.set('email', userData.email);
       if (userData.name) profileParams.set('name', userData.name);
-      const res = await fetch(`/api/investor/profile/${sessionUser.id}?${profileParams.toString()}`);
+      const res = await apiFetch(`/api/investor/profile/${sessionUser.id}?${profileParams.toString()}`);
       if (res.ok) {
         const prof = await res.json();
         setProfile(prof);
@@ -173,7 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
           authSubscription = authListener?.subscription ?? null;
         } else if (ALLOW_SERVER_FALLBACK) {
-          const res = await fetch('/api/auth/current-session');
+          const res = await apiFetch('/api/auth/current-session');
           if (!mounted) return;
           if (res.ok) {
             const data = await res.json();
@@ -210,7 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshProfile = async () => {
     if (!user) return;
     try {
-      const res = await fetch(`/api/investor/profile/${user.id}`);
+      const res = await apiFetch(`/api/investor/profile/${user.id}`);
       if (res.ok) {
         const prof = await res.json();
         setProfile(prof);
@@ -247,7 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!ALLOW_SERVER_FALLBACK) {
         return { success: false, error: NOT_CONFIGURED_ERROR };
       }
-      const res = await fetch('/api/auth/login', {
+      const res = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: cleanEmail, password: pass }),
@@ -281,6 +281,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           password: pass,
           options: {
             data: {
+              referral_code: referralCode || undefined,
               full_name: fullName,
               phone: phone,
             },
@@ -303,9 +304,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Create the investor profile (non-fatal if it fails; profile is also created on first load)
         try {
-          await fetch('/api/investor/register-profile', {
+          await apiFetch('/api/investor/register-profile', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(data.session?.access_token ? {Authorization: `Bearer ${data.session.access_token}`} : {}) },
             body: JSON.stringify({
               id: data.user.id,
               email: data.user.email || cleanEmail,
@@ -331,7 +332,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!ALLOW_SERVER_FALLBACK) {
         return { success: false, error: NOT_CONFIGURED_ERROR };
       }
-      const res = await fetch('/api/auth/signup', {
+      const res = await apiFetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -399,7 +400,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (isSupabaseConfigured) {
         await supabase.auth.signOut();
       }
-      await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+      await apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
     } finally {
       setUser(null);
       setProfile(null);

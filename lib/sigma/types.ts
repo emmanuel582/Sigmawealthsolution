@@ -29,20 +29,18 @@ export interface BankDetails {
   routing_number?: string | null;
   iban?: string | null;
   bic?: string | null;
-  stripe_account_id?: string | null;
+  bachs_account_id?: string | null;
   connect_onboarding_complete?: boolean;
   payouts_enabled?: boolean;
-  flutterwave_beneficiary_id?: string | null;
+  bachs_destination_id?: string | null;
   created_at: string;
   updated_at?: string;
 }
 
 export interface CardDetails {
   user_id: string;
-  flutterwave_card_token?: string;
-  flutterwave_customer_id?: string | null;
-  stripe_payment_method_id?: string | null;
-  stripe_customer_id?: string | null;
+  bachs_payment_method_id?: string | null;
+  bachs_customer_id?: string | null;
   card_last4: string;
   card_brand: string;
   card_exp_month?: string | null;
@@ -68,7 +66,9 @@ export interface Payment {
   user_id: string;
   amount: number;
   method: 'card' | 'card_token' | 'auto_debit' | 'opay_transfer';
-  flutterwave_tx_ref: string;
+  provider_reference?: string;
+  bachs_checkout_id?: string;
+  bachs_payment_id?: string;
   status: 'successful' | 'pending' | 'failed';
   notes?: string | null;
   created_at: string;
@@ -80,7 +80,7 @@ export interface Payout {
   amount: number;
   mode: 'automatic' | 'manual';
   status: 'successful' | 'pending' | 'failed';
-  flutterwave_transfer_id?: string | null;
+  provider_transfer_id?: string | null;
   processed_at: string;
   processed_by?: string | null;
   notes?: string | null;
