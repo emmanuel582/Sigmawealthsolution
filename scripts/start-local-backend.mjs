@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { spawn, execFileSync } from 'node:child_process';
+const backend=path.resolve(process.argv[2] || '../Sigmawealthsolutionbackend');
+const remote=execFileSync('git',['-C',backend,'config','--get','remote.origin.url'],{encoding:'utf8'}).trim();
+if(remote!=='https://github.com/emmanuel582/Sigmawealthsolutionbackend.git')throw Error('Expected the separate Sigmawealthsolutionbackend checkout.');
+const env={...process.env};
+if(!env.DOTENV_CONFIG_PATH)env.DOTENV_CONFIG_PATH=fs.existsSync(path.join(backend,'.env'))?path.join(backend,'.env'):path.resolve('.env');
+const child=spawn(process.execPath,['--watch','--import','tsx','--import','dotenv/config','server/sigma-api.ts'],{cwd:backend,env,stdio:'inherit'});
+child.on('exit',code=>process.exit(code || 0));
+for(const event of ['SIGINT','SIGTERM'])process.on(event,()=>child.kill(event));

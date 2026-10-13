@@ -64,7 +64,7 @@ const nextConfig = {
     return [{ source: '/(.*)', headers: securityHeaders }]
   },
   async rewrites() {
-    const api = (process.env.SIGMA_API_URL || process.env.NEXT_PUBLIC_SIGMA_API_URL || 'http://127.0.0.1:4000').replace(/\/$/, '')
+    const api = (process.env.SIGMA_API_URL || process.env.NEXT_PUBLIC_SIGMA_API_URL || (process.env.NODE_ENV === 'production' ? 'https://sigmawealthsolutionbackend.onrender.com' : 'http://127.0.0.1:4000')).replace(/\/$/, '')
     // Proxy investor/admin/auth APIs to Express (Render).
     // All Bachs payment, webhook and Connect routes use one Express ledger on Render.
     return [
