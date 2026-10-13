@@ -43,7 +43,6 @@ export default function HomePage() {
       <Navbar />
       <main className="flex-1">
         <HeroSection />
-        <FundingPlansSection />
         <motion.div
           initial="hidden"
           whileInView="visible"
@@ -68,6 +67,7 @@ export default function HomePage() {
         >
           <DetailedFeaturesSection />
         </motion.div>
+        <FundingPlansSection />
         <motion.div
           initial="hidden"
           whileInView="visible"
