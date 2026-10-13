@@ -41,7 +41,6 @@ export function AuthHeroPanel() {
             <span className="w-2 h-2 rounded-full bg-[#9fe870] animate-pulse" />
             <p className="text-[11px] font-bold uppercase tracking-widest text-[#9fe870]">Sigma Wealth Solution</p>
           </div>
-          <p className="text-sm font-semibold text-white">Automated, transparent & secure wealth growth.</p>
         </div>
         <div className="hidden xl:flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-[11px] font-medium text-white/90">
           <AppIcon name="shield" className="w-3.5 h-3.5 text-[#9fe870]" />
@@ -170,13 +169,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
     }
   }, []);
 
-  const headings: Record<Mode, { title: string; sub: string }> = {
-    login: { title: 'Welcome Back', sub: 'Access your portfolio and manage your structured investments.' },
-    signup: { title: 'Create Your Account', sub: 'Join thousands of investors building wealth through disciplined cycles.' },
-    forgot: { title: 'Reset Your Password', sub: "Enter your account email and we'll send you a link to set a new password." },
+  const headings: Record<Mode, { title: string }> = {
+    login: { title: 'Welcome Back' },
+    signup: { title: 'Create Your Account' },
+    forgot: { title: 'Reset Your Password' },
   };
 
-  const { title, sub } = headings[mode];
+  const { title } = headings[mode];
 
   /* ─────────────────────────── LOGIN FORM ─────────────────────────── */
   const loginForm = (
@@ -499,12 +498,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
             </div>
             <div>
               <p className="font-bold text-[#163300] text-lg leading-tight">Sigma Wealth</p>
-              <p className="text-[10px] text-[#163300]/50 uppercase tracking-widest font-semibold">Investor Portal</p>
             </div>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#163300] tracking-tight">{title}</h1>
-          <p className="text-sm text-[#163300]/55 mt-1 mb-5 leading-relaxed">{sub}</p>
+          <h1 className="mb-5 text-2xl sm:text-3xl font-bold text-[#163300] tracking-tight">{title}</h1>
 
           {/* Alerts */}
           <AnimatePresence mode="wait">

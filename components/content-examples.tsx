@@ -86,15 +86,6 @@ export function ContentExamples() {
             <span className="text-black">. Total Financial Growth.</span>
           </h2>
           
-          <motion.p 
-            className="text-sm sm:text-base md:text-lg lg:text-xl text-black/80 max-w-4xl mx-auto leading-relaxed"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-          >
-            SigmawealthSolution provides smart investing tools, guaranteed return timelines, and automated payout systems built for effortless wealth creation.
-          </motion.p>
         </motion.div>
 
         {/* SYSTEM / DESKTOP VIEW: The original grid as it has always been */}

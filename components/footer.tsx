@@ -17,16 +17,6 @@ export function Footer() {
               <span className="text-lg sm:text-xl font-bold tracking-tight md:text-gray-900 text-white">sigmawealth</span>
             </Link>
             
-            {/* Mobile description */}
-            <p className="text-sm text-white/60 mt-3 max-w-[220px] leading-snug md:hidden">
-              The better way to grow and invest.
-            </p>
-            
-            {/* Desktop description */}
-            <p className="hidden md:block text-sm text-gray-500 mt-5 leading-relaxed mb-8 pr-4">
-              One Platform Every Tool You Need. Sigmawealth helps you discover trends faster, create better content, and scale smarter — with tools for trend analysis, content creation, and audience insights, built for creators and brands.
-            </p>
-            
             {/* Socials - Desktop */}
             <div className="hidden md:flex items-center gap-3">
               <Link href="#" className="text-gray-400 hover:text-gray-900 transition-colors bg-gray-100 p-2.5 rounded-full" aria-label="Instagram" prefetch={false}>

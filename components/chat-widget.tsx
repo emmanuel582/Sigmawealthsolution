@@ -361,7 +361,6 @@ export default function ChatWidget() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold text-gray-900">Need investment help?</p>
-                        <p className="text-[11px] text-gray-500 mt-0.5">Chat with our team anytime!</p>
                       </div>
                       <button
                         onClick={() => setShowNudge(false)}

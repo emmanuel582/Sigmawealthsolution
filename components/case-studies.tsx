@@ -72,9 +72,6 @@ export function CaseStudies() {
           <span className="text-[#004324]">Investors</span>
           <span className="text-black"> Say</span>
         </h2>
-        <p className="text-sm sm:text-base md:text-lg text-gray-600 text-center max-w-2xl mx-auto">
-          Real stories from Nigerian investors who trust SigmawealthSolution with their money.
-        </p>
       </div>
 
       <div className="mb-8 sm:mb-12 max-w-[1080px] mx-auto px-4">

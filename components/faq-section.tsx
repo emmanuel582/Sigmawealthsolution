@@ -36,9 +36,6 @@ export function FAQSection() {
           <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-black mb-4 sm:mb-6">
             Questions about investing with us
           </h2>
-          <p className="text-base sm:text-lg text-gray-700 max-w-2xl mx-auto">
-            Find answers about SigmawealthSolution returns, payouts, and funding options.
-          </p>
         </div>
 
         <div className="max-w-4xl mx-auto">

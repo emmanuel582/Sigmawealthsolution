@@ -81,9 +81,6 @@ export function DetailedFeaturesSection() {
               <p className="text-base sm:text-lg font-semibold text-black mb-2">Minimum Investment</p>
             </div>
             <AnimatedCounter end={64000} prefix="₦" duration={2} />
-            <p className="text-gray-600 mt-4 leading-relaxed text-sm sm:text-base">
-              start from ₦64,000 — choose one of five fixed plans
-            </p>
             <div className="hidden md:block absolute -right-8 lg:-right-12 top-1/2 transform -translate-y-1/2 w-px h-32 bg-gray-300" />
           </motion.div>
 
@@ -98,9 +95,6 @@ export function DetailedFeaturesSection() {
               <p className="text-base sm:text-lg font-semibold text-black mb-2">First Payout</p>
             </div>
             <AnimatedCounter end={25} suffix="%" duration={2} />
-            <p className="text-gray-600 mt-4 leading-relaxed text-sm sm:text-base">
-              of your deposit paid every week for 4 weeks
-            </p>
             <div className="hidden md:block absolute -right-8 lg:-right-12 top-1/2 transform -translate-y-1/2 w-px h-32 bg-gray-300" />
           </motion.div>
 
@@ -115,9 +109,6 @@ export function DetailedFeaturesSection() {
               <p className="text-base sm:text-lg font-semibold text-black mb-2">Full Cycle</p>
             </div>
             <AnimatedCounter end={4} suffix=" weeks" duration={1.5} />
-            <p className="text-gray-600 mt-4 leading-relaxed text-sm sm:text-base">
-              complete return by week 4 (includes interest)
-            </p>
           </motion.div>
         </div>
 
@@ -138,16 +129,9 @@ export function DetailedFeaturesSection() {
             />
             <div className="absolute inset-0 bg-[#004324]/55" />
             <div className="relative z-10 flex flex-col items-center justify-center text-center px-6 sm:px-10 py-12 sm:py-16 gap-4 sm:gap-5">
-              <p className="text-[#9fe870] text-xs sm:text-sm font-semibold tracking-wide uppercase">
-                SigmawealthSolution
-              </p>
               <h3 className="text-white text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight max-w-2xl leading-snug">
                 We grow your capital with clear weekly returns
               </h3>
-              <p className="text-white/85 text-sm sm:text-base max-w-xl leading-relaxed">
-                Invest from ₦64,000, get 25% of your deposit back each week for 4 weeks, and manage
-                everything from your dashboard — card fund, auto-debit, and bank payouts.
-              </p>
               <Link
                 href="/auth/signup"
                 className="mt-2 inline-flex items-center justify-center rounded-xl bg-[#9fe870] text-[#163300] font-bold text-sm sm:text-base px-6 sm:px-8 py-3 hover:bg-[#b6f08e] transition-colors"

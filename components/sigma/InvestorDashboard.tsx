@@ -760,7 +760,6 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
           <div className="bg-white border border-[#163300]/8 rounded-2xl shadow-sm overflow-hidden">
             <div className="p-4 border-b border-[#163300]/5">
               <h3 className="text-sm font-bold">Payment History</h3>
-              <p className="text-[10px] text-[#163300]/50">All confirmed deposits</p>
             </div>
             {payments.length === 0 ? (
               <div className="p-10 text-center">
@@ -1086,7 +1085,6 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
             <div className="flex items-center justify-between border-b border-[#163300]/8 pb-3">
               <div>
                 <h3 className="text-lg font-bold text-[#163300]">Make a Contribution</h3>
-                <p className="text-xs text-[#163300]/50">Pay securely with Bachs</p>
               </div>
               <button
                 onClick={() => setShowPaymentModal(false)}
@@ -1196,7 +1194,6 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-bold text-[#163300]">Your invite link</h3>
-                <p className="text-xs text-[#163300]/50">Share this — you earn 5% of their first investment</p>
               </div>
               <button type="button" onClick={() => setShowInviteModal(false)} className="p-1 rounded-lg hover:bg-[#edefeb]">
                 <X className="w-5 h-5" />
@@ -1222,7 +1219,6 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ onNavigate
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Connect payout bank</h3>
-                <p className="text-xs text-slate-500">Bachs collects your local bank details securely</p>
               </div>
               <button
                 onClick={() => setShowBankModal(false)}

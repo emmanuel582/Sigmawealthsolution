@@ -1,7 +1,6 @@
 import type React from "react"
 export interface PageHeaderProps {
   title: string
-  description: string
   imageUrl?: string
 }
 

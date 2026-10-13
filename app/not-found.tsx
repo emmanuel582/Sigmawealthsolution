@@ -39,10 +39,6 @@ export default function NotFound() {
           <h1 className="mt-4 text-2xl sm:text-3xl font-bold tracking-tight">
             This page stepped off the map
           </h1>
-          <p className="mt-3 text-sm sm:text-base text-white/60 leading-relaxed max-w-md mx-auto">
-            Every route on Sigma Wealth is intentional. The link you followed either never existed,
-            moved, or was kept private for security. Let&apos;s get you back to solid ground.
-          </p>
 
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
@@ -61,9 +57,6 @@ export default function NotFound() {
             </Link>
           </div>
 
-          <p className="mt-10 text-[11px] text-white/35 tracking-wide">
-            Tip: bookmark your dashboard — we keep sensitive tools off the public map.
-          </p>
         </motion.div>
       </main>
     </div>

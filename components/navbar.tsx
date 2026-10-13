@@ -337,7 +337,6 @@ export function Navbar() {
               >
                 <feature.icon className="w-8 h-8 text-[#004324]" />
                 <h4 className="text-base font-semibold text-gray-900">{feature.title}</h4>
-                <p className="text-sm text-gray-500 leading-snug">{feature.description}</p>
               </Link>
               {index < features.length - 1 && (
                 <div className="absolute right-0 top-[20%] bottom-[20%] w-px bg-gray-200" />

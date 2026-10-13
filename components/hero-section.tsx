@@ -32,14 +32,6 @@ export function HeroSection() {
       <div className="relative z-10 w-[95%] max-w-[1080px] mx-auto px-4 sm:px-6 md:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           <div className="text-center lg:text-left">
-            <motion.p
-              className="text-[#004324] font-semibold text-sm sm:text-base tracking-wide mb-3"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-            >
-              SigmawealthSolution
-            </motion.p>
             <motion.h1
               className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-5 sm:mb-6"
               initial={{ opacity: 0, y: 30 }}
@@ -52,15 +44,6 @@ export function HeroSection() {
               <br />
               <span className="text-[#004324]">investing</span>
             </motion.h1>
-
-            <motion.p
-              className="text-base sm:text-lg md:text-xl text-black/90 mb-6 sm:mb-8 max-w-lg mx-auto lg:mx-0"
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.4 }}
-            >
-              Choose a fixed funding plan from ₦64,000. Get your full return every month — 25% paid every week for 4 weeks, with interest included in week 4.
-            </motion.p>
 
             <motion.div
               className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4"

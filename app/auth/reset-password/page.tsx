@@ -108,9 +108,7 @@ export default function ResetPasswordPage() {
     }
   }
 
-  const heading = done
-    ? { title: "Password Updated", sub: "You can now log in with your new password." }
-    : { title: "Set a New Password", sub: "Choose a strong password for your investor account." }
+  const title = done ? "Password Updated" : "Set a New Password"
 
   return (
     <div className="min-h-screen min-h-[100dvh] w-full flex flex-col lg:flex-row bg-[#edefeb] overflow-x-hidden">
@@ -129,12 +127,10 @@ export default function ResetPasswordPage() {
             </div>
             <div>
               <p className="font-bold text-[#163300] text-lg leading-tight">Sigma Wealth</p>
-              <p className="text-[10px] text-[#163300]/50 uppercase tracking-widest font-semibold">Investor Portal</p>
             </div>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#163300] tracking-tight">{heading.title}</h1>
-          <p className="text-sm text-[#163300]/55 mt-1 mb-5 leading-relaxed">{heading.sub}</p>
+          <h1 className="mb-5 text-2xl sm:text-3xl font-bold text-[#163300] tracking-tight">{title}</h1>
 
           {/* Verifying */}
           {checking && (

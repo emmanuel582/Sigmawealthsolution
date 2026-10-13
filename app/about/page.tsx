@@ -30,13 +30,9 @@ export default function AboutPage() {
         <section className="relative overflow-hidden bg-[#0d1a12] text-white">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(159,232,112,0.12),_transparent_55%)]" />
           <div className="relative w-[95%] max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
-            <p className="text-[#9fe870] text-sm font-semibold tracking-wide mb-3">About us</p>
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight max-w-2xl">
               About SigmawealthSolution
             </h1>
-            <p className="mt-4 text-white/65 text-base sm:text-lg max-w-xl leading-relaxed">
-              We help people grow wealth with clear monthly returns — from ₦64,000 upward.
-            </p>
           </div>
         </section>
 

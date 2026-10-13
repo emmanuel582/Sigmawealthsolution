@@ -39,13 +39,9 @@ export default function ContactPage() {
         <section className="relative overflow-hidden bg-[#0d1a12] text-white">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(159,232,112,0.12),_transparent_55%)]" />
           <div className="relative w-[95%] max-w-[1080px] mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
-            <p className="text-[#9fe870] text-sm font-semibold tracking-wide mb-3">Get in touch</p>
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight max-w-2xl">
               Contact SigmawealthSolution
             </h1>
-            <p className="mt-4 text-white/65 text-base sm:text-lg max-w-xl leading-relaxed">
-              Questions about investing, payouts, or your account? Reach our team directly — we respond promptly.
-            </p>
           </div>
         </section>
 
@@ -60,7 +56,6 @@ export default function ContactPage() {
               <div className="rounded-2xl bg-[#163300] text-white p-6 sm:p-8 space-y-6 shadow-xl">
                 <div>
                   <h2 className="text-xl sm:text-2xl font-bold">Direct contact</h2>
-                  <p className="text-white/55 text-sm mt-1">Primary support contact for investors</p>
                 </div>
 
                 <div className="space-y-4">
@@ -120,7 +115,6 @@ export default function ContactPage() {
             >
               <div>
                 <h2 className="text-xl sm:text-2xl font-bold text-[#163300]">Send a message</h2>
-                <p className="text-sm text-[#163300]/50 mt-1">We typically reply within one business day.</p>
               </div>
 
               {sent && (

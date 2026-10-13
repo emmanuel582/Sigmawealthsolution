@@ -639,7 +639,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
               <Lock className="w-7 h-7" />
             </div>
             <h2 className="text-2xl font-black text-[#163300]">Admin access</h2>
-            <p className="text-sm text-[#163300]/60">Sign in with an allowlisted administrator account.</p>
           </div>
 
           <div className="flex bg-[#edefeb] p-1 rounded-xl">

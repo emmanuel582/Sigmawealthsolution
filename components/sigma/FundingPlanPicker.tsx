@@ -24,7 +24,6 @@ export function FundingPlanPicker({ value, onChange, disabled = false, label = '
           </label>
         ))}
       </div>
-      <p className="text-[11px] text-[#163300]/55">Each top-up must match one of these amounts exactly.</p>
     </fieldset>
   );
 }
