@@ -5,10 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AppIcon } from '@/components/sigma/ui/AppIcon';
 import { PressableButton } from '@/components/sigma/ui/Pressable';
 import { BrandLogo } from '@/components/BrandLogo';
-import { supabase, isSupabaseConfigured } from '@/lib/sigma/supabaseClient';
+import { isSupabaseConfigured } from '@/lib/sigma/supabaseClient';
 
 interface AuthPageProps {
   initialMode?: 'login' | 'signup' | 'forgot';
+  initialError?: string | null;
   onNavigate: (view: string) => void;
 }
 
@@ -51,8 +52,8 @@ export function AuthHeroPanel() {
   );
 }
 
-export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNavigate }) => {
-  const { signInWithEmail, signUpWithEmail, signInWithGoogle, isLoading } = useAuth();
+export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', initialError = null, onNavigate }) => {
+  const { signInWithEmail, signUpWithEmail, signInWithGoogle, resetPassword, isLoading } = useAuth();
 
   const [mode, setMode] = useState<Mode>(toMode(initialMode));
   const [email, setEmail] = useState('');
@@ -64,13 +65,21 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(initialError);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     setMode(toMode(initialMode));
   }, [initialMode]);
+
+  useEffect(() => { setErrorMessage(initialError); }, [initialError]);
+
+  useEffect(() => {
+    const resume = (event: PageTransitionEvent) => { if (event.persisted) setSubmitting(false); };
+    window.addEventListener('pageshow', resume);
+    return () => window.removeEventListener('pageshow', resume);
+  }, []);
 
   const handleGoogleSignIn = async () => {
     setErrorMessage(null);
@@ -94,10 +103,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
         if (!isSupabaseConfigured) {
           setErrorMessage('Password reset requires Supabase configuration.');
         } else {
-          const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-            redirectTo: `${window.location.origin}/auth/reset-password`,
-          });
-          if (error) throw error;
+          const result = await resetPassword(email);
+          if (!result.success) throw new Error(result.error);
           // Same message whether or not the email exists (doesn't leak which emails are registered)
           setSuccessMessage('If an account exists for that email, a reset link is on its way. Check your inbox and spam folder.');
         }
@@ -106,7 +113,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
         if (result.success) {
           if (rememberMe) localStorage.setItem('apex_remember_email', email);
           else localStorage.removeItem('apex_remember_email');
-          onNavigate('dashboard');
         } else {
           setErrorMessage(result.error || 'Invalid credentials. Please verify and try again.');
         }
@@ -139,9 +145,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
           setConfirmPassword('');
           setMode('login');
           setSuccessMessage('Account created. Check your email to confirm it, then log in.');
-        } else if (result.success) {
-          onNavigate('dashboard');
-        } else {
+        } else if (!result.success) {
           setErrorMessage(result.error || 'Failed to create your account.');
         }
       }
@@ -507,6 +511,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onNav
           <AnimatePresence mode="wait">
             {errorMessage && (
               <motion.div
+                role="alert"
+                aria-label="Sign-in error"
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}

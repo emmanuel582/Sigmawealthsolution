@@ -5,6 +5,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://auth-regression.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: public-test-key-for-intercepted-auth
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,3 +21,5 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
       - run: npm run build
       - run: node scripts/check-production-ui.mjs
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:auth

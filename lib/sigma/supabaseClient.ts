@@ -26,6 +26,10 @@ export const supabaseConfigStatus = {
   keyLength: rawKey ? rawKey.length : 0,
 };
 
+// Complete links issued before the PKCE migration without invalidating them.
+const legacyImplicitReturn = typeof window !== 'undefined'
+  && new URLSearchParams(window.location.hash.replace(/^#/, '')).has('access_token');
+
 // Create real Supabase client if configured, or a fallback client
 export const supabase: SupabaseClient = isSupabaseConfigured
   ? createClient(normalizedUrl, rawKey, {
@@ -33,6 +37,7 @@ export const supabase: SupabaseClient = isSupabaseConfigured
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
+        flowType: legacyImplicitReturn ? 'implicit' : 'pkce',
       },
     })
   : createClient('https://mock-instance.supabase.co', 'mock-anon-key-placeholder', {

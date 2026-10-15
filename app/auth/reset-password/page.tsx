@@ -58,15 +58,9 @@ export default function ResetPasswordPage() {
             return
           }
 
-          // PKCE flow: link arrives as ?code=...
-          const code = url.searchParams.get("code")
-          if (code) {
-            const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
-            if (exchangeError) throw exchangeError
-            window.history.replaceState({}, "", url.pathname)
-          }
-
-          // Implicit flow: tokens in the #hash are picked up by the client automatically
+          // The shared client consumes the one-time code exactly once.
+          const { error: initError } = await supabase.auth.initialize()
+          if (initError) throw initError
           const { data } = await supabase.auth.getSession()
           if (data.session) setReady(true)
           else setError(EXPIRED_MSG)

@@ -1,6 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import { useCallback } from "react"
 import { ADMIN_APP_PATH } from "@/lib/sigma/adminPath"
 
 const VIEW_ROUTES: Record<string, string> = {
@@ -16,8 +17,8 @@ const VIEW_ROUTES: Record<string, string> = {
 /** Maps legacy apex onNavigate(view) calls to Next.js routes */
 export function useSigmaNavigate() {
   const router = useRouter()
-  return (view: string) => {
+  return useCallback((view: string) => {
     const path = VIEW_ROUTES[view] || "/"
     router.push(path)
-  }
+  }, [router])
 }

@@ -18,7 +18,7 @@ const API_BASE = '/api';
 // Attach the signed-in Supabase session to protected payment and admin requests.
 export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
-  if (isSupabaseConfigured) {
+  if (isSupabaseConfigured && !headers.has('Authorization')) {
     const { data } = await supabase.auth.getSession();
     if (data.session?.access_token) headers.set('Authorization', 'Bearer ' + data.session.access_token);
   }

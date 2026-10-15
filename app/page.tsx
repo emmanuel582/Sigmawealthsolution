@@ -16,6 +16,7 @@ import { motion, type Variants } from "framer-motion"
 import { useAuth } from "@/contexts/AuthContext"
 import { ADMIN_APP_PATH } from "@/lib/sigma/adminPath"
 import { BrandLoader } from "@/components/BrandLoader"
+import { authErrorCode } from "@/lib/sigma/authRedirects"
 
 export default function HomePage() {
   const router = useRouter()
@@ -23,6 +24,8 @@ export default function HomePage() {
 
   // Only signed-in (existing) users leave the marketing landing page
   useEffect(() => {
+    const error = authErrorCode(new URL(window.location.href))
+    if (error) { router.replace(`/auth/login?auth_error=${error}`); return }
     if (isLoading || !user) return
     router.replace(role === "admin" ? ADMIN_APP_PATH : "/dashboard")
   }, [user, role, isLoading, router])

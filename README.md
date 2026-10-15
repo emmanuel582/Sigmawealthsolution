@@ -20,10 +20,18 @@ Keep this checkout and Sigmawealthsolutionbackend as sibling folders. npm run de
 
 ## Verification
 
+Authentication uses the singleton Supabase browser client to consume PKCE codes once. Login and signup do not wait for Render profile/role reads, and confirmation-only signup makes no protected profile request. Metadata loads with a bearer token in the background. Expired OAuth returns lead to a clean login URL and a fresh Google sign-in.
+
+The production host redirects sigmawealthsolution.com to www.sigmawealthsolution.com. Supabase currently allowlists the apex callback, so the app sends /auth/callback and /auth/reset-password through that alias; hosting preserves their parameters on the redirect back to www. If changing domains, update Supabase Authentication URL Configuration and these callbacks together. Do not add a Google provider callback directly to the frontend: Google returns to the project's Supabase /auth/v1/callback.
+
 npm run typecheck
 npm run lint
 npm run build
 node scripts/check-production-ui.mjs
 npm run check:secrets
+npx playwright install chromium
+npm run test:auth
+
+The authentication browser tests intercept all Supabase and backend requests. They do not create real accounts, send emails, or move funds. Build first; CI builds with an isolated public test configuration and runs these regressions automatically.
 
 Run npm test and npm run check:bachs in the backend repository for payment, access-control and readiness checks. The real-key test results and required provider/hosting updates are recorded in reports/production-readiness.txt and the backend's reports directory. Live automatic payments are not activated by publishing these repositories.

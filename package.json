@@ -15,6 +15,7 @@
     "lint": "next lint",
     "check:secrets": "node scripts/check-secrets.mjs",
     "typecheck": "tsc --noEmit",
+    "test:auth": "playwright test",
     "sync:backend-contract": "node scripts/sync-payment-contract.mjs"
   },
   "dependencies": {
@@ -76,6 +77,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
     "@types/node": "^22.18.4",
     "@types/nodemailer": "^8.0.2",
     "@types/react": "^19.1.13",
