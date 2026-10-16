@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { beginPublicRequest, boundedJson } from '@/lib/server/publicApiGuard'
 export const runtime = "nodejs"
 
 function detectIntent(text: string, hint?: string) {
@@ -22,6 +23,7 @@ async function callGemini(systemPrompt: string, userText: string) {
 
     const res = await fetch(`${endpoint}?key=${apiKey}`, {
       method: "POST",
+      signal: AbortSignal.timeout(15_000),
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\nUser: ${userText}` }] }],
@@ -31,17 +33,23 @@ async function callGemini(systemPrompt: string, userText: string) {
         },
       }),
     })
-    if (!res.ok) throw new Error(await res.text())
+    if (!res.ok) throw new Error('Assistant provider unavailable')
     const data = await res.json()
     return data?.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't generate a response."
   } catch (e: any) {
-    console.error("Gemini error", e?.message || e)
+    console.error("Assistant provider request failed")
     return "I had trouble generating a response just now. Please try again."
   }
 }
 
 export async function POST(req: NextRequest) {
-  const { message, intent: hinted } = await req.json()
+  const release = beginPublicRequest(req)
+  if (release instanceof NextResponse) return release
+  try {
+  const { message, intent: hinted } = await boundedJson(req)
+  if (typeof message !== 'string' || !message.trim() || message.length > 4000 || hinted != null && (typeof hinted !== 'string' || hinted.length > 40)) {
+    return NextResponse.json({ error: 'Invalid message.' }, { status: 400 })
+  }
   const text: string = String(message ?? "").slice(0, 4000)
   const enhancedText = `${hinted || ""} ${text}`.toLowerCase()
   let intent = detectIntent(enhancedText, hinted)
@@ -112,4 +120,7 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ intent, reply })
+  } catch {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  } finally { release() }
 }

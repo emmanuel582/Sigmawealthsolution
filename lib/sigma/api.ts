@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '@/lib/sigma/supabaseClient';
+import { paymentAttemptKey, clearPaymentAttempt } from './paymentAttempt';
 import { 
   Profile, 
   Investment, 
@@ -22,7 +23,7 @@ export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {})
     const { data } = await supabase.auth.getSession();
     if (data.session?.access_token) headers.set('Authorization', 'Bearer ' + data.session.access_token);
   }
-  return fetch(input, { ...init, headers });
+  return fetch(input, { ...init, headers, signal: init.signal || AbortSignal.timeout(30_000) });
 }
 
 export async function fetchAppConfig(): Promise<{
@@ -138,16 +139,25 @@ export async function initiateBachsPayment(payload: {
   investment?: Investment;
   nextAction?: unknown;
 }> {
+  // Reuse the same durable key after a timeout, refresh, or second tab.
+  const getKey = () => paymentAttemptKey(localStorage, payload.userId, payload.amount, Boolean(payload.isRecurringPlan));
+  const attemptKey = navigator.locks
+    ? await navigator.locks.request(`sigma-checkout:${payload.userId}`, getKey)
+    : getKey();
   const res = await apiFetch(`${API_BASE}/bachs/initiate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...payload, currency: 'ngn' }),
+    body: JSON.stringify({ ...payload, currency: 'ngn', idempotencyKey: attemptKey }),
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: 'Failed to initiate payment' }));
+    if (['CHECKOUT_EXPIRED', 'ALREADY_CREDITED'].includes(error.code)) clearPaymentAttempt(localStorage, payload.userId, attemptKey);
     throw new Error(error.message);
   }
-  return await res.json();
+  const result = await res.json();
+  if (result.reference) localStorage.setItem(`sigma_checkout_reference:${result.reference}`, attemptKey);
+  if (result.completed && result.success) clearPaymentAttempt(localStorage, payload.userId, attemptKey);
+  return result;
 }
 
 export async function verifyBachsPayment(payload: {
@@ -174,7 +184,14 @@ export async function verifyBachsPayment(payload: {
     const error = await res.json().catch(() => ({ message: 'Payment verification failed' }));
     throw new Error(error.message);
   }
-  return await res.json();
+  const result = await res.json();
+  if (result.success && payload.txRef) {
+    const slot = `sigma_checkout_reference:${payload.txRef}`;
+    const attemptKey = localStorage.getItem(slot);
+    if (attemptKey) clearPaymentAttempt(localStorage, payload.userId, attemptKey);
+    localStorage.removeItem(slot);
+  }
+  return result;
 }
 
 export async function syncBachsTransactions(all = false): Promise<{ success: boolean; syncedCount: number; totalPayments: number; message?: string }> {

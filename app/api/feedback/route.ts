@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { beginPublicRequest, boundedJson } from '@/lib/server/publicApiGuard'
 import type { Transporter } from "nodemailer"
 export const runtime = "nodejs"
 
@@ -20,8 +21,10 @@ async function getTransporter(): Promise<Transporter | null> {
 }
 
 export async function POST(req: NextRequest) {
+  const release = beginPublicRequest(req)
+  if (release instanceof NextResponse) return release
   try {
-    const { name, email, description, type, severity } = await req.json()
+    const { name, email, description, type, severity } = await boundedJson(req)
     if (typeof name !== 'string' || typeof email !== 'string' || typeof description !== 'string'
       || !name.trim() || name.length > 120 || /[\r\n]/.test(name)
       || email.length > 254 || !/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(email)
@@ -62,9 +65,9 @@ export async function POST(req: NextRequest) {
     // No SMTP configured: return a preview so you can see the composed email
     return NextResponse.json({ ok: true, delivered: false, preview: { to: FEEDBACK_TO || "(not set)", subject, text } })
   } catch (e: any) {
-    console.error("feedback_error", e?.message || e)
+    console.error("Feedback request failed")
     return NextResponse.json({ ok: false, error: "Invalid request" }, { status: 400 })
-  }
+  } finally { release() }
 }
 
 export async function GET() {
